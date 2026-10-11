@@ -59,6 +59,15 @@ export const repoRef = (repo: string): RepositoryRef => {
   return { owner, repo: name };
 };
 
+/**
+ * A value inside a quoted GitHub search term. GitHub's search syntax has no escape for `"`, so a quote or backslash
+ * in the term could close the phrase and add qualifiers such as `repo:other/repo`; they are removed, as are control
+ * characters.
+ */
+export function searchPhrase(value: string): string {
+  return `"${value.replace(/["\\\p{Cc}]/gu, ' ').replace(/\s+/g, ' ').trim()}"`;
+}
+
 const versionKey = (repo: string) => `cache:version:${repo.toLowerCase()}`;
 
 /** Invalidate every cached read of a repository (called by the webhook on discussion events). */
@@ -104,7 +113,7 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
   } else {
     // Lower-case repo in the query: GitHub's search mismatches categories otherwise (upstream behaviour).
     const term = query.strict ? await digestHex(query.term ?? '') : (query.term ?? '');
-    const search = [`repo:${query.repo.toLowerCase()}`, query.category ? `category:${JSON.stringify(query.category)}` : '', query.strict ? 'in:body' : 'in:title', JSON.stringify(term)]
+    const search = [`repo:${query.repo.toLowerCase()}`, query.category ? `category:${searchPhrase(query.category)}` : '', query.strict ? 'in:body' : 'in:title', searchPhrase(term)]
       .filter(Boolean)
       .join(' ');
     const data = await github.graphql<SearchData>(repository, DISCUSSION_BY_SEARCH, { query: search, ...pagination });
@@ -112,6 +121,8 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
     rateLimit = data.rateLimit;
   }
 
+  // Defence in depth: never return a discussion from another repository, whatever the search matched.
+  if (discussion && discussion.repository.nameWithOwner.toLowerCase() !== query.repo.toLowerCase()) discussion = null;
   if (rateLimit && rateLimit.remaining < LOW_BUDGET) log('warn', c, { github: 'rate-limit-low', remaining: rateLimit.remaining, resetAt: rateLimit.resetAt });
   if (!discussion) throw new AppError('DISCUSSION_NOT_FOUND', 'This page has no discussion yet.');
 

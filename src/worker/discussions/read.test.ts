@@ -109,6 +109,24 @@ describe('GET /api/discussions', () => {
   });
 });
 
+describe('search injection', () => {
+  it('keeps quotes and backslashes in the term from adding search qualifiers', async () => {
+    const { request, fake } = setup();
+    await request(`/api/discussions?repo=${encodeURIComponent(REPO)}&term=${encodeURIComponent('x" repo:secret/private "')}&category=${encodeURIComponent('a" repo:x/y "')}`);
+    const query = (fake.calls.find((call) => call.path === '/graphql')?.body as { variables: { query: string } }).variables.query;
+
+    expect(query).toBe('repo:internetpubliclibrary/discuss-sandbox category:"a repo:x/y" in:title "x repo:secret/private"');
+    expect(query.match(/"/g)).toHaveLength(4);
+  });
+
+  it('never returns a discussion from another repository', async () => {
+    const other = { ...discussion([comment('C9')]), repository: { nameWithOwner: 'secret/private' } };
+    const { request } = setup(other);
+
+    expect((await request(termPath())).status).toBe(404);
+  });
+});
+
 describe('webhook invalidation (#9)', () => {
   it('refetches after a signed discussion_comment event for the repository', async () => {
     const { request, fake } = setup();
