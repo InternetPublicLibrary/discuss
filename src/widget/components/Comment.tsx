@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { Comment as CommentData, Reply as ReplyData } from '../../shared/types';
+import { associationKey } from '../lib/association';
 import { useAuth } from '../lib/auth';
 import type { WidgetConfig } from '../lib/config';
 import { getJson } from '../lib/api';
@@ -52,9 +53,9 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
                   {formatDistance(comment.createdAt)}
                 </time>
               </a>
-              {comment.authorAssociation !== 'NONE' && !comment.orcidAuthor ? (
+              {associationKey(comment.authorAssociation) && !comment.orcidAuthor ? (
                 <span className="hidden text-xs leading-[18px] sm:inline-flex">
-                  <span className="color-box-border-info font-medium capitalize ml-1 rounded-xl border px-[7px]">{t(comment.authorAssociation)}</span>
+                  <span className="color-box-border-info font-medium ml-1 rounded-xl border px-[7px]">{t(associationKey(comment.authorAssociation) ?? '')}</span>
                 </span>
               ) : null}
             </div>

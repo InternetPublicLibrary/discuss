@@ -1,6 +1,6 @@
 /** GraphQL documents ported from giscus `services/github/getDiscussion.ts`. */
 const REACTION_GROUPS = `reactionGroups { content users { totalCount } viewerHasReacted }`;
-const AUTHOR = `author { avatarUrl login url }`;
+const AUTHOR = `author { avatarUrl login url ... on User { name } }`;
 const COMMENT_FIELDS = `id ${AUTHOR} viewerDidAuthor createdAt url authorAssociation lastEditedAt deletedAt isMinimized minimizedReason bodyHTML ${REACTION_GROUPS}`;
 
 export const REPLY_FIELDS = `${COMMENT_FIELDS} replyTo { id }`;

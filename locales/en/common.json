@@ -124,5 +124,6 @@
   "commentOnGitHub": "Comment on GitHub",
   "openingGitHub": "Opening GitHub…",
   "orcidBadge": "ORCID iD {{id}}",
-  "orcidPostingNote": "Your comment will be published by the IPL app with your name and ORCID iD."
+  "orcidPostingNote": "Your comment will be published by the IPL app with your name and ORCID iD.",
+  "iplTeam": "IPL team"
 }
