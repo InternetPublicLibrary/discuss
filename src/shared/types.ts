@@ -15,6 +15,8 @@ export interface User {
   avatarUrl: string;
   login: string;
   url: string;
+  /** GitHub profile name, when set (users only). */
+  name?: string | null;
 }
 
 export type ReactionGroups = Record<Reaction, { count: number; viewerHasReacted: boolean }>;

@@ -2,6 +2,7 @@ import type { Reply as ReplyData } from '../../shared/types';
 import type { WidgetConfig } from '../lib/config';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
+import { associationKey } from '../lib/association';
 import { Author } from './Author';
 import { ReactionButtons } from './ReactionButtons';
 
@@ -27,6 +28,11 @@ export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfi
             <div className="gsc-reply-header">
               <div className="gsc-reply-author">
                 <Author item={reply} avatarClass="hidden" />
+                {associationKey(reply.authorAssociation) && !reply.orcidAuthor ? (
+                  <span className="hidden text-xs leading-[18px] sm:inline-flex">
+                    <span className="color-box-border-info font-medium ml-1 rounded-xl border px-[7px]">{t(associationKey(reply.authorAssociation) ?? '')}</span>
+                  </span>
+                ) : null}
                 <a rel="nofollow noopener noreferrer" target="_blank" href={reply.url} className="link-secondary overflow-hidden text-ellipsis">
                   <time className="whitespace-nowrap" title={formatDate(reply.createdAt)} dateTime={reply.createdAt}>
                     {formatDistance(reply.createdAt)}

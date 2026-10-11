@@ -14,10 +14,12 @@ export function Author({ item, avatarClass }: { item: Comment | Reply; avatarCla
       </a>
     );
   }
+  const name = item.author.name?.trim();
   return (
     <a rel="nofollow noopener noreferrer" target="_blank" href={item.author.url} className="gsc-comment-author-avatar flex items-center">
       <img className={avatarClass} src={item.author.avatarUrl} width={30} height={30} alt="" loading="lazy" />
-      <span className="link-primary overflow-hidden text-ellipsis font-semibold">{item.author.login}</span>
+      <span className="link-primary overflow-hidden text-ellipsis font-semibold">{name || item.author.login}</span>
+      {name ? <span className="color-text-secondary ml-1 overflow-hidden text-ellipsis">(@{item.author.login})</span> : null}
     </a>
   );
 }
