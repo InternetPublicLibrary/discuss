@@ -4,6 +4,7 @@ import type { Env } from './env';
 import { discussionRoutes, invalidateOnChange } from './discussions/routes';
 import { handleError, handleNotFound } from './errors';
 import { webhookRoute } from './webhook';
+import { serveWidget } from './widget';
 
 export const app = new Hono<{ Bindings: Env }>();
 
@@ -13,6 +14,7 @@ app.use('/api/*', originGuard());
 
 app.get('/api/health', (c) => c.json({ service: 'discuss', environment: c.env.ENVIRONMENT }));
 
+app.get('/widget', serveWidget);
 app.route('/api', discussionRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 

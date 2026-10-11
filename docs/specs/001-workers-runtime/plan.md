@@ -26,3 +26,12 @@ src/shared/      types and pure helpers used by both (terms, reasons)
 
 Foundation → errors and GitHub client → allow-lists → discussion reads and cache → terms and find-or-create →
 categories and upstream fixes → widget port with CSP → replies, reactions → client.js → specs 002–004 → remove Next.js.
+
+## Widget port notes (T7)
+
+- Read-only until spec 002: comments, replies, reactions (counts), pagination, ordering, themes and languages work;
+  writing, reacting and signing in arrive with sessions.
+- Comment HTML is GitHub's `bodyHTML`, sanitised again with DOMPurify; links get `rel="noopener noreferrer nofollow ugc"`.
+- Not ported: MathJax rendering of `<math-renderer>` (vendored as git submodules upstream); math shows as GitHub's
+  fallback text. Revisit if IPL discussions need formulas.
+- Widget tests run in jsdom: happy-dom let DOMPurify keep event-handler attributes.

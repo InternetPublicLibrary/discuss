@@ -60,7 +60,6 @@
   "cancel": "Cancel",
   "signInWithGitHub": "Sign in with GitHub",
   "writeAReply": "Write a reply",
-
   "upvote": "Upvote",
   "youMustBeSignedInToUpvote": "You must be signed in to upvote.",
   "addReactions": "Add reactions",
@@ -77,7 +76,6 @@
   },
   "emoji": "emoji",
   "nothingToPreview": "Nothing to preview",
-
   "THUMBS_UP": "+1",
   "THUMBS_DOWN": "-1",
   "LAUGH": "Laugh",
@@ -86,7 +84,6 @@
   "HEART": "Love",
   "ROCKET": "Rocket",
   "EYES": "Eyes",
-
   "COLLABORATOR": "Collaborator",
   "CONTRIBUTOR": "Contributor",
   "FIRST_TIMER": "First-timer",
@@ -95,5 +92,17 @@
   "MEMBER": "Member",
   "NONE": "None",
   "OWNER": "Owner",
-  "APP": "App"
+  "APP": "App",
+  "reason.empty-term": "Comments are not configured for this page.",
+  "reason.repo-not-found": "The comment repository for this page could not be found.",
+  "reason.repo-not-allowed": "Comments are not available for this repository.",
+  "reason.category-mismatch": "Comments are misconfigured for this page.",
+  "reason.origin-not-allowed": "This page is not allowed to show IPL comments.",
+  "reason.rate-limited": "Comments are temporarily unavailable. Please try again later.",
+  "reason.github-unavailable": "Comments could not be loaded right now. Please try again later.",
+  "reason.signed-out": "Your session has ended. Please sign in again.",
+  "reason.invalid-request": "Something went wrong loading the comments.",
+  "reason.internal": "Something went wrong loading the comments.",
+  "noCommentsYet": "No comments yet. Be the first to start the conversation.",
+  "signInToCommentSoon": "Sign-in to comment is coming soon."
 }
