@@ -18,12 +18,17 @@ const vars: Partial<Env> = {
   SESSION_SECRET: 'x'.repeat(40),
 };
 
+/** How GitHub answers a refresh; tests change it (outage, refused). */
+let refreshReply = (): Response => Response.json({ access_token: 'ghu_renewed', expires_in: 28800, refresh_token: 'ghr_next' });
+
 function providers() {
   return new FakeGitHub()
     .on('POST', /^\/login\/oauth\/access_token$/, (call) =>
-      Response.json(String(call.body).includes('code=good')
-        ? { access_token: 'ghu_reader_token', expires_in: 28800, refresh_token: 'ghr_refresh', refresh_token_expires_in: 15_897_600 }
-        : String(call.body).includes('grant_type=refresh_token') ? { access_token: 'ghu_renewed', expires_in: 28800, refresh_token: 'ghr_next' } : { error: 'bad_verification_code' }),
+      String(call.body).includes('grant_type=refresh_token')
+        ? refreshReply()
+        : Response.json(String(call.body).includes('code=good')
+          ? { access_token: 'ghu_reader_token', expires_in: 28800, refresh_token: 'ghr_refresh', refresh_token_expires_in: 15_897_600 }
+          : { error: 'bad_verification_code' }),
     )
     .on('GET', /^\/user$/, { id: 583231, login: 'octocat', name: 'The Octocat', avatar_url: 'https://avatars.githubusercontent.com/u/583231' })
     .on('POST', /^\/oauth\/token$/, { access_token: 'orcid-token', orcid: '0000-0002-1825-0097', name: 'Josiah Carberry' });
@@ -183,6 +188,56 @@ describe('session lifecycle', () => {
     await env.DISCUSS_KV.put(`session:${id}`, JSON.stringify({ ...stored, github: await seal(vars.SESSION_SECRET, { ...tokens, expiresAt: Date.now() - 1000 }) }));
 
     expect(await (await request('/api/probe-token', { headers: { cookie } })).text()).toBe('ghu_renewed');
+  });
+
+  async function expired() {
+    const context = await signedIn();
+    const id = context.cookie.split('=')[1] ?? '';
+    const stored = (await env.DISCUSS_KV.get<{ github: string }>(`session:${id}`, 'json')) as { github: string };
+    const tokens = (await unseal<Record<string, unknown>>(vars.SESSION_SECRET, stored.github)) ?? {};
+    await env.DISCUSS_KV.put(`session:${id}`, JSON.stringify({ ...stored, github: await seal(vars.SESSION_SECRET, { ...tokens, expiresAt: Date.now() - 1000 }) }));
+    return { ...context, id };
+  }
+
+  it('keeps the session when GitHub is down during a refresh (review)', async () => {
+    const { request, cookie, id } = await expired();
+    refreshReply = () => new Response('unavailable', { status: 502 });
+    try {
+      const response = await request('/api/probe-token', { headers: { cookie } });
+
+      expect(response.status).toBe(503);
+      expect(await env.DISCUSS_KV.get(`session:${id}`)).not.toBeNull();
+    } finally {
+      refreshReply = () => Response.json({ access_token: 'ghu_renewed', expires_in: 28800, refresh_token: 'ghr_next' });
+    }
+  });
+
+  it('uses the token a concurrent request renewed when its own refresh is refused (review)', async () => {
+    const { request, cookie, id } = await expired();
+    refreshReply = () => {
+      // The other request won the single-use refresh token and stored its result meanwhile.
+      void (async () => {
+        const stored = (await env.DISCUSS_KV.get<Record<string, unknown>>(`session:${id}`, 'json')) ?? {};
+        await env.DISCUSS_KV.put(`session:${id}`, JSON.stringify({ ...stored, github: await seal(vars.SESSION_SECRET, { accessToken: 'ghu_from_winner', expiresAt: Date.now() + 3_600_000 }) }));
+      })();
+      return Response.json({ error: 'bad_refresh_token' });
+    };
+    try {
+      expect(await (await request('/api/probe-token', { headers: { cookie } })).text()).toBe('ghu_from_winner');
+    } finally {
+      refreshReply = () => Response.json({ access_token: 'ghu_renewed', expires_in: 28800, refresh_token: 'ghr_next' });
+    }
+  });
+
+  it('signs out when GitHub refuses the refresh and nobody renewed it', async () => {
+    const { request, cookie, id } = await expired();
+    refreshReply = () => Response.json({ error: 'bad_refresh_token' });
+    try {
+      expect((await request('/api/probe-token', { headers: { cookie } })).status).toBe(401);
+      expect(await env.DISCUSS_KV.get(`session:${id}`)).toBeNull();
+    } finally {
+      refreshReply = () => Response.json({ access_token: 'ghu_renewed', expires_in: 28800, refresh_token: 'ghr_next' });
+    }
   });
 });
 

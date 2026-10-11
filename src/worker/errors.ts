@@ -104,7 +104,9 @@ export function errorResponse(c: Context, error: AppError): Response {
 /** Hono onError: AppErrors keep their status; anything else is a logged 500 that leaks no internals. */
 export function handleError(error: Error, c: Context): Response {
   if (error instanceof AppError) {
-    if (error.status >= 500) log('error', c, { code: error.code, details: error.details, internal: error.internal });
+    if (error.status >= 500) log('error', c, { code: error.code, message: error.message, details: error.details, internal: error.internal });
+    // Configuration problems name settings and values: logged for maintainers, never sent to callers.
+    if (error.code === 'NOT_CONFIGURED') return errorResponse(c, new AppError('NOT_CONFIGURED', 'Comments are not available right now.'));
     return errorResponse(c, error);
   }
   log('error', c, { code: 'INTERNAL', name: error.name, message: error.message });

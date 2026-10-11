@@ -8,7 +8,7 @@ import { gitHubAppFromEnv } from '../github/client';
 import { adaptReply, type GReply } from './adapt';
 import { COMMENT_REPLIES } from './graphql';
 import { markOrcid } from './orcid';
-import { CACHE_TTL_S, repoRef } from './read';
+import { CACHE_TTL_S, limitUncachedReads, repoRef } from './read';
 
 export interface RepliesPage {
   totalCount: number;
@@ -36,6 +36,7 @@ export async function readReplies(c: Context<{ Bindings: Env }>, fetcher?: typeo
   const key = `cache:replies:${repo.toLowerCase()}:${version}:${await digestHex(`${comment}:${before}`, 'SHA-256')}`;
   const cached = await kv.get<RepliesPage>(key, 'json');
   if (cached) return cached;
+  await limitUncachedReads(c);
 
   const github = gitHubAppFromEnv(c.env, fetcher);
   const data = await github.graphql<RepliesData>(repoRef(repo), COMMENT_REPLIES, { id: comment, before: before || null });

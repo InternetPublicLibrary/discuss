@@ -127,10 +127,12 @@ describe('find-or-create (#10, #11)', () => {
 
   it('cannot close the hidden term comment from the term', async () => {
     const fake = github();
-    await findOrCreateUnlocked(app(fake), env.DISCUSS_KV, input({ term: 'a --> <script>' }), env);
+    await findOrCreateUnlocked(app(fake), env.DISCUSS_KV, input({ term: 'a ---->> <script>' }), env);
     const body = (creates(fake)[0]?.body as { variables: { input: { body: string } } }).variables.input.body;
 
-    expect(body).toContain('<!-- discuss-term: a  <script> -->');
+    // Single-pass removal of "-->" would rebuild it from "---->>"; dashes runs and ">" go entirely.
+    expect(body).toMatch(/<!-- discuss-term: a\s+<script\s+-->/);
+    expect(body.match(/-->/g)).toHaveLength(2);
   });
 });
 
@@ -149,6 +151,14 @@ describe('concurrency through the Durable Object', () => {
     expect(first?.number).toBe(second?.number);
     expect([first?.created, second?.created].sort()).toEqual([false, true]);
   });
+
+  it('keeps the error code of a failure inside the Durable Object (review)', async () => {
+    const fake = github();
+    vi.spyOn(globalThis, 'fetch').mockImplementation(fake.fetch);
+    Object.assign(env, { GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem });
+
+    await expect(findOrCreateDiscussion({ ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem }, input({ categoryId: 'DIC_unknown' }))).rejects.toMatchObject({ name: 'AppError', code: 'CATEGORY_MISMATCH' });
+  });
 });
 
 describe('extractEmoji (#25)', () => {
@@ -159,5 +169,14 @@ describe('extractEmoji (#25)', () => {
     [null, ''],
   ])('extracts the emoji from %j', (html, emoji) => {
     expect(extractEmoji(html)).toBe(emoji);
+  });
+
+  it('keeps page metadata from mentioning people or linking out in the bot-authored discussion (review)', async () => {
+    const fake = github();
+    await findOrCreateUnlocked(app(fake), env.DISCUSS_KV, input({ title: 'Hi @org/team #12', description: '[Claim](https://evil.example) @maintainers &#64;team' }), env);
+    const sent = (creates(fake)[0]?.body as { variables: { input: { body: string; title: string } } }).variables.input;
+
+    expect(sent.title).not.toMatch(/@[\w]|#\d/);
+    expect(sent.body).not.toMatch(/@[\w]|\]\(|https:\/\/evil|&#64;/);
   });
 });

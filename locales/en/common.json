@@ -147,5 +147,6 @@
   "delete": "Delete",
   "confirmDelete": "Delete this comment?",
   "report": "Report",
-  "previewFailed": "The preview could not be loaded."
+  "previewFailed": "The preview could not be loaded.",
+  "signOutFailed": "Sign-out did not complete. Please try again."
 }

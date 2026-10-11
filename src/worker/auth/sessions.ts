@@ -80,8 +80,10 @@ export function assertWidgetWrite(c: AppContext, session: Session): void {
 }
 
 /**
- * The reader's GitHub token for a write, refreshed when it expired (GitHub App user tokens last 8 hours). A session
- * whose token cannot be renewed is signed out.
+ * The reader's GitHub token for a write, refreshed when it expired (GitHub App user tokens last 8 hours). Refresh
+ * tokens are single use, so two writes racing on an expired token both refresh and one is refused: that one waits
+ * for the winner's write and uses its token. A session is signed out only when GitHub refuses and nobody renewed it;
+ * GitHub being unavailable keeps the session.
  */
 export async function githubToken(c: AppContext, found: { id: string; session: Session }, fetcher: typeof fetch = (input, init) => fetch(input, init)): Promise<string> {
   if (!found.session.github) throw new AppError('UNAUTHENTICATED', 'Sign in with GitHub to do this.');
@@ -91,12 +93,30 @@ export async function githubToken(c: AppContext, found: { id: string; session: S
 
   const renewed = tokens.refreshToken && (!tokens.refreshExpiresAt || tokens.refreshExpiresAt > Date.now())
     ? await refreshGitHubToken({ clientId: c.env.GITHUB_CLIENT_ID, clientSecret: c.env.GITHUB_CLIENT_SECRET, orcidBaseUrl: '', fetch: fetcher }, tokens.refreshToken)
-    : null;
-  if (!renewed) {
+    : 'refused';
+  if (renewed === 'unavailable') throw new AppError('GITHUB_UNAVAILABLE', 'GitHub is not responding. Please try again.');
+  if (renewed === 'refused') {
+    const winner = await renewedElsewhere(c, found);
+    if (winner) return winner;
     await destroySession(c);
     throw new AppError('UNAUTHENTICATED', 'Your GitHub sign-in has expired. Please sign in again.');
   }
-  const session: Session = { ...found.session, github: await seal(c.env.SESSION_SECRET, renewed) };
+  // Written back only while the session still exists: a logout in the meantime must not be undone.
+  const current = await c.env.DISCUSS_KV.get<Session>(sessionKey(found.id), 'json');
+  if (!current) throw new AppError('UNAUTHENTICATED', 'Your session has ended. Please sign in again.');
+  const session: Session = { ...current, github: await seal(c.env.SESSION_SECRET, renewed) };
   await c.env.DISCUSS_KV.put(sessionKey(found.id), JSON.stringify(session), { expirationTtl: sessionTtlSeconds(c.env) });
   return renewed.accessToken;
+}
+
+/** A fresh token another request stored for this session while ours was refused (polled briefly). */
+async function renewedElsewhere(c: AppContext, found: { id: string; session: Session }): Promise<string | null> {
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    if (attempt) await new Promise((resolve) => setTimeout(resolve, 250 * attempt));
+    const current = await c.env.DISCUSS_KV.get<Session>(sessionKey(found.id), 'json');
+    if (!current?.github || current.github === found.session.github) continue;
+    const tokens = await unseal<GitHubTokens>(c.env.SESSION_SECRET, current.github);
+    if (tokens && (!tokens.expiresAt || tokens.expiresAt - 60_000 > Date.now())) return tokens.accessToken;
+  }
+  return null;
 }

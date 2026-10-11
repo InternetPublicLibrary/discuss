@@ -10,10 +10,11 @@ import { type GitHubApp, gitHubAppFromEnv } from '../github/client';
 import { adaptComment, adaptReply, type GComment, type GReply } from './adapt';
 import { REPLY_FIELDS } from './graphql';
 import { bumpCacheVersion, repoRef } from './read';
-import { commentId, DELETE_COMMENT, discussionIdFor, UPDATE } from './writes';
+import { commentId, DELETE_COMMENT, discussionIdFor, limitWrites, UPDATE } from './writes';
 
 /** Comments by ORCID readers, posted by the IPL App with visible attribution (spec 003 T1, #15). */
 export const ORCID_PER_HOUR = 10;
+const ORCID_PER_IP_HOUR = 30;
 export const ORCID_MAX_LENGTH = 10_000;
 /** Set by reads when the App's GraphQL budget runs low: ORCID posting pauses so reads keep working. */
 export const LOW_BUDGET_KEY = 'budget:graphql-low';
@@ -41,6 +42,8 @@ async function assertWithinLimits(c: Context<{ Bindings: Env }>, orcid: string):
     throw new AppError('GITHUB_RATE_LIMITED', 'Commenting with ORCID is paused for a while. Please try again later.', undefined, 900);
   }
   await takeOrThrow(c.env, `orcid:${orcid}`, ORCID_PER_HOUR, 3600, `You can post up to ${ORCID_PER_HOUR} comments an hour.`);
+  // ORCID iDs are free to create: a per-network cap stops one client from rotating iDs to post as the App.
+  await takeOrThrow(c.env, `orcid-ip:${c.req.header('cf-connecting-ip') ?? 'unknown'}`, ORCID_PER_IP_HOUR, 3600, 'Too many comments from this network. Please try again later.');
 }
 
 export function orcidRoutes(fetcher?: typeof fetch) {
@@ -80,6 +83,8 @@ export function orcidRoutes(fetcher?: typeof fetch) {
     assertWidgetWrite(c, session);
     if (session.identity.provider !== 'orcid' || !ORCID_ID.test(session.identity.id)) throw new AppError('UNAUTHENTICATED', 'Sign in with ORCID to do this.');
     const repo = assertRepositoryAllowed(repoValue, loadAllowLists(c.env));
+    // Edits and deletes spend the App's budget too: the same per-reader limit as GitHub writes.
+    await limitWrites(c, `orcid:${session.identity.id}`);
     const id = commentId(c.req.param('id') ?? '');
     const github = gitHubAppFromEnv(c.env, fetcher);
     const { node } = await github.graphql<{ node: { body?: string; author?: { login: string } | null; discussion?: { repository: { nameWithOwner: string } } } | null }>(

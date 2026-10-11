@@ -94,6 +94,15 @@ describe('writes by GitHub readers', () => {
     expect(fake.calls.find((call) => call.path === '/graphql')?.body).toMatchObject({ variables: { input: { subjectId: 'D_page', content: 'HEART' } } });
   });
 
+  it('refuses a reaction on a node outside the allowed repository (review)', async () => {
+    const { cookie, csrfToken } = await session();
+    const fake = github();
+    const response = await post(fake, '/api/reactions', { repo: REPO, subjectId: 'DC_other', content: 'HEART' }, { cookie, 'x-csrf-token': csrfToken });
+
+    expect(response.status).toBe(404);
+    expect(fake.calls.some((call) => ((call.body as { query?: string } | undefined)?.query ?? '').includes('addReaction'))).toBe(false);
+  });
+
   it('invalidates cached reads after a write', async () => {
     const { cookie, csrfToken } = await session();
     const before = Number((await env.DISCUSS_KV.get(`cache:version:${REPO.toLowerCase()}`)) ?? 0);

@@ -4,6 +4,7 @@ import type { DiscussionPage } from '../../shared/types';
 import { assertRepositoryAllowed, loadAllowLists } from '../config';
 import type { Env } from '../env';
 import { AppError, log } from '../errors';
+import { takeOrThrow } from '../limits';
 import { gitHubAppFromEnv, type RepositoryRef } from '../github/client';
 import { adaptDiscussion, type GDiscussion } from './adapt';
 import { isTrustedDiscussion, trustFor } from './find-or-create';
@@ -43,6 +44,8 @@ export function parseQuery(c: Context<{ Bindings: Env }>): DiscussionQuery {
   const last = int(c.req.query('last'), 100);
   const after = c.req.query('after');
   const before = c.req.query('before');
+  const tooLong = term.length > 500 || (c.req.query('category') ?? '').length > 100 || (c.req.query('categoryId') ?? '').length > 100 || (after ?? '').length > 200 || (before ?? '').length > 200;
+  if (tooLong) throw new AppError('BAD_REQUEST', 'The request is too long.');
   return {
     repo,
     ...(term ? { term } : {}),
@@ -94,6 +97,14 @@ interface NumberData {
   repository: { discussion: GDiscussion | null } | null;
 }
 
+const NOT_FOUND_TTL_S = 60;
+const UNCACHED_READS = 120;
+
+/** Uncached reads (GitHub calls) per client IP: 120 per 10 minutes, far above what one reader needs. */
+export async function limitUncachedReads(c: Context<{ Bindings: Env }>): Promise<void> {
+  await takeOrThrow(c.env, `reads:${c.req.header('cf-connecting-ip') ?? 'unknown'}`, UNCACHED_READS, 600, 'Too many requests. Please try again later.');
+}
+
 /**
  * Read a discussion as the App. Anonymous results are cached in KV (one GitHub call per page per TTL); the
  * remaining GraphQL budget is logged when it runs low so maintainers see it before readers do.
@@ -103,7 +114,6 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
   const key = await cacheKey(kv, query);
   const cached = await kv.get<DiscussionPage>(key, 'json');
   if (cached) return cached;
-
   const github = gitHubAppFromEnv(c.env, fetcher);
   const repository = repoRef(query.repo);
   const pagination = { first: query.first, last: query.last, after: query.after, before: query.before };
@@ -115,6 +125,10 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
     ? await kv.get<{ number: number }>(`map:${query.repo.toLowerCase()}:${query.categoryId}:${await digestHex(query.term)}`, 'json')
     : null;
   const number = query.number ?? mapped?.number;
+  // Pages without a discussion are remembered briefly (one created here is found through the map above first), and
+  // each client gets a budget of uncached reads, so random terms cannot spend the App's GraphQL quota.
+  if (!number && (await kv.get(`${key}:none`))) throw new AppError('DISCUSSION_NOT_FOUND', 'This page has no discussion yet.');
+  await limitUncachedReads(c);
 
   if (number) {
     const data = await github.graphql<NumberData>(repository, DISCUSSION_BY_NUMBER, { owner: repository.owner, name: repository.repo, number, ...pagination });
@@ -141,7 +155,10 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
     const seconds = Math.max(60, Math.ceil((Date.parse(rateLimit.resetAt) - Date.now()) / 1000) || 900);
     await kv.put(LOW_BUDGET_KEY, rateLimit.resetAt, { expirationTtl: seconds });
   }
-  if (!discussion) throw new AppError('DISCUSSION_NOT_FOUND', 'This page has no discussion yet.');
+  if (!discussion) {
+    await kv.put(`${key}:none`, '1', { expirationTtl: NOT_FOUND_TTL_S });
+    throw new AppError('DISCUSSION_NOT_FOUND', 'This page has no discussion yet.');
+  }
 
   const page: DiscussionPage = markOrcidPage({ viewer: null, discussion: adaptDiscussion(discussion) }, await github.botLogin());
   await kv.put(key, JSON.stringify(page), { expirationTtl: CACHE_TTL_S });
