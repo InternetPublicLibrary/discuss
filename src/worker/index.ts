@@ -3,6 +3,7 @@ import { authRoutes } from './auth/routes';
 import { originGuard } from './config';
 import type { Env } from './env';
 import { discussionRoutes, invalidateOnChange } from './discussions/routes';
+import { writeRoutes } from './discussions/writes';
 import { handleError, handleNotFound } from './errors';
 import { webhookRoute } from './webhook';
 import { serveWidget } from './widget';
@@ -21,6 +22,7 @@ app.get('/', (c) => c.redirect('/widget', 302));
 app.get('/index.html', (c) => c.redirect('/widget', 302));
 app.route('/api', authRoutes());
 app.route('/api', discussionRoutes());
+app.route('/api', writeRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 
 export { DiscussionLock } from './discussions/find-or-create';
