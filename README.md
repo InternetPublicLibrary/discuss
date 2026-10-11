@@ -61,10 +61,15 @@ Decisions: [docs/adr/](docs/adr/). Contributor notes: [AGENTS.md](AGENTS.md).
 | `IPL_ORIGIN_PATTERNS` | var | Optional anchored patterns with one `*` label, e.g. `https://*.ipl-preview.pages.dev` |
 | `ALLOWED_REPOSITORIES` | var | `owner/repo` list whose discussions the service serves (production: `InternetPublicLibrary/en-US`, `InternetPublicLibrary/pt-BR`) |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
+| `GITHUB_WEBHOOK_SECRET` | secret | Webhook secret of the App (events `discussion`, `discussion_comment`, `installation`; content type JSON) |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in PKCS#8 PEM (`openssl pkcs8 -topk8 -nocrypt -in key.pem`) |
 
 Every `/api/*` request must come from the widget itself or an allowed IPL origin (otherwise `403 origin-not-allowed`);
 CORS headers are sent only to allowed origins, and the bot never touches repositories outside `ALLOWED_REPOSITORIES`.
+
+Anonymous reads of a discussion are cached in KV for 5 minutes (one GitHub call per page per period); any signed
+`discussion` or `discussion_comment` webhook event for the repository invalidates its cached reads at once. The GraphQL
+budget is requested with every read and logged when it runs low.
 
 ## Development
 
