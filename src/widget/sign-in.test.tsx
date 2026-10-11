@@ -131,15 +131,24 @@ describe('writing as a GitHub reader', () => {
 });
 
 describe('ORCID readers', () => {
-  it('see reactions read-only with an explanation and no comment box yet', async () => {
-    api((url) => (url === '/api/session' ? Response.json(ORCID) : undefined));
+  it('see reactions read-only with an explanation, and post through the IPL App', async () => {
+    const spy = api((url) => (url === '/api/session' ? Response.json(ORCID) : url === '/api/orcid/comments' ? Response.json({ discussionId: 'D', comment: { id: 'C_o', author: { avatarUrl: 'a', login: 'ipl-discuss[bot]', url: 'u' }, orcidAuthor: { id: '0000-0002-1825-0097', name: 'Josiah Carberry', profileUrl: 'https://sandbox.orcid.org/0000-0002-1825-0097' }, viewerDidAuthor: false, createdAt: '2026-10-11T00:00:00Z', url: 'u', authorAssociation: 'NONE', lastEditedAt: null, deletedAt: null, isMinimized: false, minimizedReason: null, bodyHTML: '<p>Ótimo</p>', reactions: {}, upvoteCount: 0, viewerHasUpvoted: false, viewerCanUpvote: false, replyCount: 0, replies: [], repliesStartCursor: null } }, { status: 201 }) : undefined));
     const root = document.body.appendChild(document.createElement('div'));
     render(<App config={config()} />, root);
 
     await vi.waitFor(() => expect(root.textContent).toContain('Signed in as Josiah Carberry'));
     expect(root.textContent).toContain('Reactions are available to GitHub accounts only.');
     expect(root.querySelector('button[aria-label^="Add"]')).toBeNull();
-    expect(root.querySelector('textarea')).toBeNull();
+    expect(root.textContent).toContain('published by the IPL app with your name and ORCID iD');
+    const area = root.querySelector('textarea') as HTMLTextAreaElement;
+    area.value = 'Ótimo';
+    area.dispatchEvent(new Event('input', { bubbles: true }));
+    await vi.waitFor(() => expect(button(root, 'Comment')?.disabled).toBe(false));
+    button(root, 'Comment')?.click();
+
+    await vi.waitFor(() => expect(root.querySelector('[aria-label="ORCID iD 0000-0002-1825-0097"]')).not.toBeNull());
+    expect(spy.mock.calls.some(([url]) => String(url) === '/api/orcid/comments')).toBe(true);
+    expect(root.querySelector('article')?.textContent).not.toContain('ipl-discuss[bot]');
   });
 });
 

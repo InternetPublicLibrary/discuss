@@ -204,3 +204,24 @@ a:hover {
 .markdown > :first-child {
   @apply mt-0;
 }
+
+/* ORCID authors (spec 003): the iD mark and badge, colours from ORCID's brand green. */
+.discuss-orcid-avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9999px;
+  background: #a6ce39;
+  color: #1a1a1a;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.discuss-orcid-badge {
+  margin-inline-start: 4px;
+  padding: 0 6px;
+  border: 1px solid #a6ce39;
+  border-radius: 9999px;
+}

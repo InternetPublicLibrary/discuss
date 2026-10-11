@@ -22,4 +22,5 @@ single store.
 - [ ] Hidden/minimised comments on GitHub stay hidden in the widget.
 
 ## Out of scope
-Reactions by ORCID users (later), notifications, a separate comment store.
+Reactions by ORCID users (later), notifications, a separate comment store. Anonymous comments (`giscus#65`) and
+non-GitHub backends (`giscus#1046`): every comment is attributable to a GitHub account or a verified ORCID iD.

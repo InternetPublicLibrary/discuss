@@ -7,6 +7,7 @@ import { AppError, log } from '../errors';
 import { gitHubAppFromEnv, type RepositoryRef } from '../github/client';
 import { adaptDiscussion, type GDiscussion } from './adapt';
 import { isTrustedDiscussion, trustFor } from './find-or-create';
+import { LOW_BUDGET_KEY, markOrcidPage } from './orcid';
 import { DISCUSSION_BY_NUMBER, DISCUSSION_BY_SEARCH } from './graphql';
 
 /** Anonymous reads are cached this long; webhook events for the repository invalidate them sooner (#9). */
@@ -134,10 +135,15 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
 
   // Defence in depth: never return a discussion from another repository, whatever the search matched.
   if (discussion && discussion.repository.nameWithOwner.toLowerCase() !== query.repo.toLowerCase()) discussion = null;
-  if (rateLimit && rateLimit.remaining < LOW_BUDGET) log('warn', c, { github: 'rate-limit-low', remaining: rateLimit.remaining, resetAt: rateLimit.resetAt });
+  if (rateLimit && rateLimit.remaining < LOW_BUDGET) {
+    log('warn', c, { github: 'rate-limit-low', remaining: rateLimit.remaining, resetAt: rateLimit.resetAt });
+    // Reserve the remaining budget for reads: ORCID posting by the App pauses until the reset (spec 003, #9).
+    const seconds = Math.max(60, Math.ceil((Date.parse(rateLimit.resetAt) - Date.now()) / 1000) || 900);
+    await kv.put(LOW_BUDGET_KEY, rateLimit.resetAt, { expirationTtl: seconds });
+  }
   if (!discussion) throw new AppError('DISCUSSION_NOT_FOUND', 'This page has no discussion yet.');
 
-  const page: DiscussionPage = { viewer: null, discussion: adaptDiscussion(discussion) };
+  const page: DiscussionPage = markOrcidPage({ viewer: null, discussion: adaptDiscussion(discussion) }, await github.botLogin());
   await kv.put(key, JSON.stringify(page), { expirationTtl: CACHE_TTL_S });
   return page;
 }

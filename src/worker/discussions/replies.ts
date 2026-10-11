@@ -7,6 +7,7 @@ import { AppError } from '../errors';
 import { gitHubAppFromEnv } from '../github/client';
 import { adaptReply, type GReply } from './adapt';
 import { COMMENT_REPLIES } from './graphql';
+import { markOrcid } from './orcid';
 import { CACHE_TTL_S, repoRef } from './read';
 
 export interface RepliesPage {
@@ -36,15 +37,17 @@ export async function readReplies(c: Context<{ Bindings: Env }>, fetcher?: typeo
   const cached = await kv.get<RepliesPage>(key, 'json');
   if (cached) return cached;
 
-  const data = await gitHubAppFromEnv(c.env, fetcher).graphql<RepliesData>(repoRef(repo), COMMENT_REPLIES, { id: comment, before: before || null });
+  const github = gitHubAppFromEnv(c.env, fetcher);
+  const data = await github.graphql<RepliesData>(repoRef(repo), COMMENT_REPLIES, { id: comment, before: before || null });
   const node = data.node;
   // The node id is client-supplied: it must be a comment of a discussion in the requested (allowed) repository.
   if (!node?.replies || node.discussion?.repository.nameWithOwner.toLowerCase() !== repo.toLowerCase()) {
     throw new AppError('DISCUSSION_NOT_FOUND', 'This comment could not be found.');
   }
+  const bot = await github.botLogin();
   const page: RepliesPage = {
     totalCount: node.replies.totalCount,
-    replies: node.replies.nodes.map(adaptReply),
+    replies: node.replies.nodes.map(adaptReply).map((reply) => markOrcid(reply, bot)),
     startCursor: node.replies.pageInfo.hasPreviousPage ? node.replies.pageInfo.startCursor : null,
   };
   await kv.put(key, JSON.stringify(page), { expirationTtl: CACHE_TTL_S });

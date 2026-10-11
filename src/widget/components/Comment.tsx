@@ -5,6 +5,7 @@ import type { WidgetConfig } from '../lib/config';
 import { getJson } from '../lib/api';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
+import { Author } from './Author';
 import { CommentBox } from './CommentBox';
 import { ReactionButtons } from './ReactionButtons';
 import { Reply } from './Reply';
@@ -40,21 +41,18 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
   };
 
   return (
-    <article className="gsc-comment" aria-label={`${comment.author.login}, ${formatDate(comment.createdAt)}`}>
+    <article className="gsc-comment" aria-label={`${comment.orcidAuthor?.name ?? comment.author.login}, ${formatDate(comment.createdAt)}`}>
       <div className={`color-bg-primary w-full min-w-0 rounded-md border ${comment.viewerDidAuthor ? 'color-box-border-info' : 'color-border-primary'}`}>
         {!comment.isMinimized ? (
           <div className="gsc-comment-header">
             <div className="gsc-comment-author">
-              <a rel="nofollow noopener noreferrer" target="_blank" href={comment.author.url} className="gsc-comment-author-avatar">
-                <img className="mr-2 rounded-full" src={comment.author.avatarUrl} width={30} height={30} alt="" loading="lazy" />
-                <span className="link-primary overflow-hidden text-ellipsis font-semibold">{comment.author.login}</span>
-              </a>
+              <Author item={comment} avatarClass="mr-2 rounded-full" />
               <a rel="nofollow noopener noreferrer" target="_blank" href={comment.url} className="link-secondary overflow-hidden text-ellipsis">
                 <time className="whitespace-nowrap" title={formatDate(comment.createdAt)} dateTime={comment.createdAt}>
                   {formatDistance(comment.createdAt)}
                 </time>
               </a>
-              {comment.authorAssociation !== 'NONE' ? (
+              {comment.authorAssociation !== 'NONE' && !comment.orcidAuthor ? (
                 <span className="hidden text-xs leading-[18px] sm:inline-flex">
                   <span className="color-box-border-info font-medium capitalize ml-1 rounded-xl border px-[7px]">{t(comment.authorAssociation)}</span>
                 </span>

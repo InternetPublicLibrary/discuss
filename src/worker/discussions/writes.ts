@@ -90,7 +90,7 @@ async function writer(c: AppContext, fetcher?: typeof fetch) {
 }
 
 /** The discussion to write to: the one given, or the page's own (found or created by the App, #10). */
-async function discussionId(c: AppContext, body: Record<string, unknown>, repo: string): Promise<string> {
+export async function discussionIdFor(c: AppContext, body: Record<string, unknown>, repo: string): Promise<string> {
   if (typeof body.discussionId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.discussionId)) return body.discussionId;
   return (await findOrCreateDiscussion(c.env, pageInput(body, repo))).id;
 }
@@ -104,7 +104,7 @@ export function writeRoutes(fetcher?: typeof fetch) {
     if (!markdown) throw new AppError('VALIDATION_FAILED', 'Write something first.', { fields: ['body'] });
     if (markdown.length > MAX_BODY) throw new AppError('PAYLOAD_TOO_LARGE', 'The comment is too long.');
     const replyToId = typeof body.replyToId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.replyToId) ? body.replyToId : undefined;
-    const id = await discussionId(c, body, repo);
+    const id = await discussionIdFor(c, body, repo);
 
     if (replyToId) {
       const data = await github.graphql<{ addDiscussionComment: { comment: GReply } }>(repoRef(repo), ADD_REPLY, { input: { discussionId: id, replyToId, body: markdown } }, token);
@@ -121,7 +121,7 @@ export function writeRoutes(fetcher?: typeof fetch) {
     const content = body.content;
     if (typeof content !== 'string' || !(content in REACTIONS)) throw new AppError('VALIDATION_FAILED', 'Unknown reaction.', { fields: ['content'] });
     // No subject yet: the first reaction on a page creates its discussion and reacts to it (#20).
-    const subjectId = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : await discussionId(c, body, repo);
+    const subjectId = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : await discussionIdFor(c, body, repo);
     const verb = body.remove === true ? 'remove' : 'add';
     const data = await github.graphql<Record<string, { subject: { reactionGroups: GReactionGroup[] } }>>(
       repoRef(repo),
@@ -153,9 +153,15 @@ export function writeRoutes(fetcher?: typeof fetch) {
   });
 
   routes.post('/markdown', async (c) => {
-    const { token, body, repo } = await writer(c, fetcher);
+    const found = await requireSession(c);
+    assertWidgetWrite(c, found.session);
+    const body = await readJsonObject(c.req.raw, MAX_BODY + 8 * 1024);
+    const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
     const markdown = typeof body.text === 'string' ? body.text : '';
     if (markdown.length > MAX_BODY) throw new AppError('PAYLOAD_TOO_LARGE', 'The comment is too long.');
+    // ORCID readers have no GitHub token: their preview is rendered as the App.
+    if (!found.session.github) return c.json({ html: await gitHubAppFromEnv(c.env, fetcher).renderMarkdown(repoRef(repo), markdown) });
+    const token = await githubToken(c, found, fetcher);
     const response = await (fetcher ?? fetch)('https://api.github.com/markdown', {
       method: 'POST',
       headers: { accept: 'text/html', authorization: `Bearer ${token}`, 'content-type': 'application/json', 'user-agent': 'ipl-discuss' },
