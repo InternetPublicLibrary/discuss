@@ -17,7 +17,7 @@ export default defineConfig({
           name: 'widget',
           // jsdom: the DOM DOMPurify itself is tested against (happy-dom let event-handler attributes through).
           environment: 'jsdom',
-          include: ['src/widget/**/*.test.{ts,tsx}'],
+          include: ['src/widget/**/*.test.{ts,tsx}', 'src/client/**/*.test.ts'],
         },
       },
     ],

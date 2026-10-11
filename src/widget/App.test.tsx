@@ -62,3 +62,19 @@ describe('App', () => {
     await vi.waitFor(() => expect(root.querySelector('[role="alert"]')?.textContent).toBe('Comments are not configured for this page.'));
   });
 });
+
+describe('settings from the IPL page (#12)', () => {
+  it('applies a theme sent by the embedding page and ignores other senders', async () => {
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(discussionPage));
+    const root = document.createElement('div');
+    render(<App config={readConfig('?repo=o/r&term=x&origin=https://ipl.example/pt-BR/x/')} />, root);
+    await vi.waitFor(() => expect(root.textContent).toContain('1 comment'));
+    const themeLinks = () => [...document.head.querySelectorAll('link[rel="stylesheet"]')].map((link) => link.getAttribute('href'));
+
+    window.dispatchEvent(new MessageEvent('message', { origin: 'https://evil.example', source: window.parent, data: { discuss: { setConfig: { theme: 'dark' } } } }));
+    expect(themeLinks()).not.toContain('/themes/dark.css');
+
+    window.dispatchEvent(new MessageEvent('message', { origin: 'https://ipl.example', source: window.parent, data: { discuss: { setConfig: { theme: 'dark' } } } }));
+    await vi.waitFor(() => expect(themeLinks()).toContain('/themes/dark.css'));
+  });
+});

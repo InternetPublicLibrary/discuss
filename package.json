@@ -11,14 +11,15 @@
   "scripts": {
     "dev": "npm run build:widget && wrangler dev",
     "build": "npm run build:widget",
-    "build:widget": "vite build && node scripts/build-themes.mjs",
+    "build:widget": "vite build && vite build --config vite.client.config.ts && node scripts/build-themes.mjs",
     "deploy:staging": "npm run build && wrangler deploy --env staging",
     "deploy:production": "npm run build && wrangler deploy --env production",
     "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.widget.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+    "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run budget",
+    "budget": "node scripts/check-budget.mjs"
   },
   "repository": {
     "type": "git",

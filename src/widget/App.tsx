@@ -10,9 +10,22 @@ export function App({ config }: { config: WidgetConfig }) {
   const locale = resolveLocale(config.lang);
   const [messages, setMessages] = useState<{ current: Messages; fallback: Messages } | null>(null);
 
+  const [theme, setTheme] = useState(config.theme);
+
   useEffect(() => {
-    applyTheme(config.theme);
-  }, [config.theme]);
+    applyTheme(theme);
+  }, [theme]);
+
+  // Settings from the IPL page (client.js), accepted only from the embedding page itself (#12).
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (!config.parentOrigin || event.origin !== config.parentOrigin || event.source !== window.parent) return;
+      const setConfig = (event.data as { discuss?: { setConfig?: { theme?: unknown } } } | null)?.discuss?.setConfig;
+      if (typeof setConfig?.theme === 'string') setTheme(setConfig.theme);
+    };
+    window.addEventListener('message', onMessage);
+    return () => window.removeEventListener('message', onMessage);
+  }, [config.parentOrigin]);
 
   useEffect(() => {
     Promise.all([loadMessages(locale), loadMessages('en')]).then(([current, fallback]) => setMessages({ current, fallback }));
