@@ -61,6 +61,10 @@ Decisions: [docs/adr/](docs/adr/). Contributor notes: [AGENTS.md](AGENTS.md).
 | `IPL_ORIGIN_PATTERNS` | var | Optional anchored patterns with one `*` label, e.g. `https://*.ipl-preview.pages.dev` |
 | `ALLOWED_REPOSITORIES` | var | `owner/repo` list whose discussions the service serves (production: `InternetPublicLibrary/en-US`, `InternetPublicLibrary/pt-BR`) |
 | `TRUSTED_DISCUSSION_AUTHORS`, `LEGACY_DISCUSSIONS_BEFORE` | vars | Optional legacy authors (e.g. `giscus[bot]`) whose discussions count as a page's **only if created before** the ISO date; otherwise only discussions written by the IPL App's bot are used |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` | secrets | OAuth credentials of the IPL GitHub App (readers' user-to-server tokens); callback `https://<discuss>/api/oauth/github/callback` |
+| `ORCID_CLIENT_ID`, `ORCID_CLIENT_SECRET`, `ORCID_ENVIRONMENT` | secrets / var | ORCID sign-in (sandbox unless `production` on the production Worker); callback `https://<discuss>/api/oauth/orcid/callback` |
+| `SESSION_SECRET` | secret | 32+ random characters; seals readers' GitHub tokens in KV |
+| `SESSION_TTL_DAYS` | var | Session lifetime (default 30) |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_WEBHOOK_SECRET` | secret | Webhook secret of the App (events `discussion`, `discussion_comment`, `installation`; content type JSON) |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in PKCS#8 PEM (`openssl pkcs8 -topk8 -nocrypt -in key.pem`) |
