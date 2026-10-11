@@ -7,7 +7,7 @@ export default tseslint.config(
   // Upstream giscus (Next.js) code stays for reference until the port reaches parity; it is not built.
   {
     ignores: [
-      'node_modules/', 'dist/', '.wrangler/', 'components/', 'lib/', 'pages/', 'services/', 'styles/', 'public/',
+      'node_modules/', 'dist/', 'test-results/', 'playwright-report/', '.wrangler/', 'components/', 'lib/', 'pages/', 'services/', 'styles/', 'public/',
       'locales/', 'client.ts', 'i18n.js', 'next.config.js', 'next-env.d.ts', 'postcss.config.js', 'prettier.config.js',
       'tailwind.config.js', '.eslintrc.js', '.stylelintrc.js',
     ],
@@ -15,7 +15,7 @@ export default tseslint.config(
   js.configs.recommended,
   ...tseslint.configs.strict,
   { files: ['src/widget/**', 'src/client/**'], languageOptions: { globals: globals.browser } },
-  { files: ['scripts/**/*.mjs'], languageOptions: { globals: globals.node } },
+  { files: ['scripts/**/*.mjs', 'e2e/**/*.mjs', 'e2e/**/*.ts', 'playwright.config.ts'], languageOptions: { globals: globals.node } },
   {
     files: ['src/**/*.test.{ts,tsx}'],
     plugins: { vitest },

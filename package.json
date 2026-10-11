@@ -14,12 +14,13 @@
     "build:widget": "vite build && vite build --config vite.client.config.ts && node scripts/build-themes.mjs",
     "deploy:staging": "npm run build && wrangler deploy --env staging",
     "deploy:production": "npm run build && wrangler deploy --env production",
-    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.widget.json",
+    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.widget.json && tsc -p tsconfig.e2e.json",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
     "check": "npm run lint && npm run typecheck && npm test && npm run build && npm run budget",
-    "budget": "node scripts/check-budget.mjs"
+    "budget": "node scripts/check-budget.mjs",
+    "test:e2e": "playwright test"
   },
   "repository": {
     "type": "git",
@@ -33,11 +34,14 @@
     "preact": "^10.29.8"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@babel/core": "^7.29.7",
     "@cloudflare/vitest-plugin": "^1.4.0",
     "@cloudflare/workers-types": "^5.20261011.1",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.63.0",
     "@preact/preset-vite": "^2.10.6",
+    "@types/node": "22.19.1",
     "@vitest/eslint-plugin": "^1.6.27",
     "autoprefixer": "^10.6.1",
     "eslint": "^10.12.0",
@@ -56,5 +60,8 @@
     "esbuild": true,
     "workerd": true,
     "fsevents": false
+  },
+  "overrides": {
+    "playwright-core": "1.63.0"
   }
 }

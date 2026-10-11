@@ -225,3 +225,8 @@ a:hover {
   border: 1px solid #a6ce39;
   border-radius: 9999px;
 }
+
+/* WCAG 2.5.8: every control is at least 24px tall (#13). */
+.gsc-comment-box-tab {
+  min-height: 1.5rem;
+}
