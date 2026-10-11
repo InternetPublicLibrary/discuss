@@ -67,7 +67,7 @@ export function readConfig(search: string): WidgetConfig {
     hiddenComments: params.get('hiddenComments') === 'omit' ? 'omit' : 'collapse',
     guidelinesUrl: safeHttps(params.get('guidelinesUrl')) || (params.get('repo') ? `https://github.com/${params.get('repo')}/blob/HEAD/CODE_OF_CONDUCT.md` : ''),
     defaultCommentOrder: params.get('defaultCommentOrder') === 'newest' ? 'newest' : 'oldest',
-    theme: params.get('theme') ?? 'light',
+    theme: params.get('theme') ?? 'ipl-light',
     lang: params.get('lang') ?? 'en',
     parentOrigin: parentOrigin === 'null' ? '' : parentOrigin,
   };
