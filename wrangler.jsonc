@@ -9,6 +9,8 @@
   // The widget build; the Worker answers /api/* first and serves everything else from here.
   "assets": { "directory": "./dist/widget", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
   "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "discuss-kv-dev" }],
+  "durable_objects": { "bindings": [{ "name": "DISCUSSION_LOCK", "class_name": "DiscussionLock" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["DiscussionLock"] }],
   "vars": {
     "ENVIRONMENT": "development",
     "IPL_ALLOWED_ORIGINS": "http://localhost:4000",
@@ -17,6 +19,7 @@
   "env": {
     "staging": {
       "name": "ipl-discuss-staging",
+      "durable_objects": { "bindings": [{ "name": "DISCUSSION_LOCK", "class_name": "DiscussionLock" }] },
       "workers_dev": false,
       "routes": [{ "pattern": "discuss.staging.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
@@ -24,6 +27,7 @@
     },
     "production": {
       "name": "ipl-discuss",
+      "durable_objects": { "bindings": [{ "name": "DISCUSSION_LOCK", "class_name": "DiscussionLock" }] },
       "workers_dev": false,
       "routes": [{ "pattern": "discuss.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],

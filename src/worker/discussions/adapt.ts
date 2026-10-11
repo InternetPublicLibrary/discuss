@@ -34,6 +34,8 @@ export interface GDiscussion {
   number: number;
   url: string;
   locked: boolean;
+  createdAt?: string;
+  author?: { login: string } | null;
   repository: { nameWithOwner: string };
   reactions: { totalCount: number };
   reactionGroups: GReactionGroup[];
@@ -67,7 +69,8 @@ export function adaptComment({ replies, reactionGroups, author, ...rest }: GComm
 }
 
 export function adaptDiscussion(discussion: GDiscussion): Discussion {
-  const { comments, reactions, reactionGroups, ...rest } = discussion;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars -- authorship is checked by the caller, not sent to the widget
+  const { comments, reactions, reactionGroups, createdAt, author, ...rest } = discussion;
   return {
     ...rest,
     totalCommentCount: comments.totalCount,

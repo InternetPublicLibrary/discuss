@@ -22,7 +22,7 @@ const comment = (id: string, overrides: Partial<GComment> = {}): GComment => ({
   replies: { totalCount: 0, nodes: [] }, ...overrides,
 });
 const discussion = (comments: GComment[]): GDiscussion => ({
-  id: 'D_1', number: 7, url: 'https://github.com/x/discussions/7', locked: false, repository: { nameWithOwner: REPO }, reactions: { totalCount: 1 },
+  id: 'D_1', number: 7, url: 'https://github.com/x/discussions/7', locked: false, createdAt: '2026-10-11T00:00:00Z', author: { login: 'ipl-discuss[bot]' }, repository: { nameWithOwner: REPO }, reactions: { totalCount: 1 },
   reactionGroups: [{ content: 'THUMBS_UP', users: { totalCount: 1 }, viewerHasReacted: false }],
   comments: { totalCount: comments.length, pageInfo: { startCursor: null, hasNextPage: false, hasPreviousPage: false, endCursor: null }, nodes: comments },
 });
@@ -30,6 +30,7 @@ const discussion = (comments: GComment[]): GDiscussion => ({
 function setup(found: GDiscussion | null = discussion([comment('C1')])) {
   const fake = new FakeGitHub()
     .withInstallation()
+    .on('GET', /^\/app$/, { slug: 'ipl-discuss' })
     .on('POST', /^\/graphql$/, () => Response.json({ data: { rateLimit: { remaining: 4000, resetAt: '', cost: 1 }, search: { discussionCount: found ? 1 : 0, nodes: found ? [found] : [] } } }));
   const app = new Hono<{ Bindings: Env }>();
   app.onError(handleError);
@@ -106,6 +107,61 @@ describe('GET /api/discussions', () => {
 
     expect(response.status).toBe(403);
     expect(fake.calls).toEqual([]);
+  });
+});
+
+describe('reads after creation (#10)', () => {
+  it('finds a discussion through the KV map before GitHub search indexes it', async () => {
+    const { digestHex } = await import('../../shared/digest');
+    const term = `pt-BR/novo-${Date.now()}`;
+    await env.DISCUSS_KV.put(`map:${REPO.toLowerCase()}:DIC_c:${await digestHex(term)}`, JSON.stringify({ id: 'D_new', number: 42 }));
+    const fake = new FakeGitHub()
+      .withInstallation()
+      .on('GET', /^\/app$/, { slug: 'ipl-discuss' })
+      .on('POST', /^\/graphql$/, (call) => {
+        const variables = (call.body as { variables: { number?: number } }).variables;
+        return Response.json(variables.number === 42 ? { data: { repository: { discussion: { ...discussion([]), number: 42 } } } } : { data: { search: { discussionCount: 0, nodes: [] } } });
+      });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.route('/api', discussionRoutes(fake.fetch));
+    const response = await app.request(`/api/discussions?repo=${encodeURIComponent(REPO)}&term=${encodeURIComponent(term)}&categoryId=DIC_c&strict=1`, {}, { ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem });
+
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { discussion: { number: number } }).discussion.number).toBe(42);
+  });
+});
+
+describe('mapping spoofing', () => {
+  it('ignores a discussion someone else opened with a copied hash', async () => {
+    const spoof = { ...discussion([comment('C1')]), author: { login: 'mallory' } };
+    const { request } = setup(spoof);
+
+    expect((await request(termPath())).status).toBe(404);
+  });
+
+  it.each([
+    ['2025-01-01T00:00:00Z', 200],
+    ['2026-12-01T00:00:00Z', 404],
+  ])('accepts a legacy author only before the cutoff (created %s → %i)', async (createdAt, status) => {
+    const legacy = { ...discussion([comment('C1')]), createdAt, author: { login: 'giscus[bot]' } };
+    const fake = new FakeGitHub().withInstallation().on('GET', /^\/app$/, { slug: 'ipl-discuss' }).on('POST', /^\/graphql$/, { data: { search: { discussionCount: 1, nodes: [legacy] } } });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.route('/api', discussionRoutes(fake.fetch));
+    const vars = { ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem, TRUSTED_DISCUSSION_AUTHORS: 'giscus[bot]', LEGACY_DISCUSSIONS_BEFORE: '2026-06-01T00:00:00Z' };
+
+    expect((await app.request(termPath(), {}, vars)).status).toBe(status);
+  });
+
+  it('does not trust giscus[bot] at all without a cutoff', async () => {
+    const legacy = { ...discussion([comment('C1')]), createdAt: '2020-01-01T00:00:00Z', author: { login: 'giscus[bot]' } };
+    const fake = new FakeGitHub().withInstallation().on('GET', /^\/app$/, { slug: 'ipl-discuss' }).on('POST', /^\/graphql$/, { data: { search: { discussionCount: 1, nodes: [legacy] } } });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.route('/api', discussionRoutes(fake.fetch));
+
+    expect((await app.request(termPath(), {}, { ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem, TRUSTED_DISCUSSION_AUTHORS: 'giscus[bot]' })).status).toBe(404);
   });
 });
 

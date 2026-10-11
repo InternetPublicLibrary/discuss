@@ -16,4 +16,5 @@ app.get('/api/health', (c) => c.json({ service: 'discuss', environment: c.env.EN
 app.route('/api', discussionRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 
+export { DiscussionLock } from './discussions/find-or-create';
 export default app;

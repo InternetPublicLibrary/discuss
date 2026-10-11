@@ -6,7 +6,7 @@ const COMMENT_FIELDS = `id ${AUTHOR} viewerDidAuthor createdAt url authorAssocia
 export const REPLY_FIELDS = `${COMMENT_FIELDS} replyTo { id }`;
 
 const DISCUSSION_FIELDS = `
-  id number url locked
+  id number url locked createdAt author { login }
   repository { nameWithOwner }
   reactions { totalCount }
   ${REACTION_GROUPS}
@@ -24,7 +24,7 @@ const RATE_LIMIT = 'rateLimit { remaining resetAt cost }';
 
 export const DISCUSSION_BY_SEARCH = `query($query: String! ${PAGINATION}) {
   ${RATE_LIMIT}
-  search(type: DISCUSSION last: 1 query: $query) { discussionCount nodes { ... on Discussion { ${DISCUSSION_FIELDS} } } }
+  search(type: DISCUSSION last: 10 query: $query) { discussionCount nodes { ... on Discussion { ${DISCUSSION_FIELDS} } } }
 }`;
 
 export const DISCUSSION_BY_NUMBER = `query($owner: String! $name: String! $number: Int! ${PAGINATION}) {
