@@ -17,6 +17,8 @@ export default defineConfig({
           name: 'widget',
           // jsdom: the DOM DOMPurify itself is tested against (happy-dom let event-handler attributes through).
           environment: 'jsdom',
+          // Theme stylesheets are read as text by the contrast test (themes.test.ts).
+          css: { include: [/styles\/themes\//] },
           include: ['src/widget/**/*.test.{ts,tsx}', 'src/client/**/*.test.ts'],
         },
       },
