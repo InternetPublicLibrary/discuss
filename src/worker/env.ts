@@ -5,6 +5,12 @@ export interface Env {
   ASSETS: Fetcher;
   /** KV: GitHub tokens, caches, sessions. */
   DISCUSS_KV: KVNamespace;
+  /** Comma-separated exact origins of IPL sites (var). */
+  IPL_ALLOWED_ORIGINS?: string;
+  /** Optional comma-separated anchored patterns, one `*` label at most, e.g. `https://*.ipl-preview.pages.dev` (var). */
+  IPL_ORIGIN_PATTERNS?: string;
+  /** Comma-separated owner/repo names whose discussions the service serves (var). */
+  ALLOWED_REPOSITORIES?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** GitHub App private key, PKCS#8 PEM (secret). */

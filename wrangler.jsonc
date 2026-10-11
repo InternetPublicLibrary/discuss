@@ -10,7 +10,9 @@
   "assets": { "directory": "./dist/widget", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
   "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "discuss-kv-dev" }],
   "vars": {
-    "ENVIRONMENT": "development"
+    "ENVIRONMENT": "development",
+    "IPL_ALLOWED_ORIGINS": "http://localhost:4000",
+    "ALLOWED_REPOSITORIES": "InternetPublicLibrary/discuss-sandbox"
   },
   "env": {
     "staging": {
@@ -18,14 +20,14 @@
       "workers_dev": false,
       "routes": [{ "pattern": "discuss.staging.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
-      "vars": { "ENVIRONMENT": "staging" }
+      "vars": { "ENVIRONMENT": "staging", "IPL_ALLOWED_ORIGINS": "https://staging.ipl.better-web.org", "ALLOWED_REPOSITORIES": "InternetPublicLibrary/discuss-sandbox" }
     },
     "production": {
       "name": "ipl-discuss",
       "workers_dev": false,
       "routes": [{ "pattern": "discuss.ipl.better-web.org", "custom_domain": true }],
       "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
-      "vars": { "ENVIRONMENT": "production" }
+      "vars": { "ENVIRONMENT": "production", "IPL_ALLOWED_ORIGINS": "https://ipl.better-web.org", "ALLOWED_REPOSITORIES": "InternetPublicLibrary/en-US,InternetPublicLibrary/pt-BR" }
     }
   }
 }

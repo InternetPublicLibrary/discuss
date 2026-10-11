@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { env } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
 import { REASONS } from '../shared/reasons';
 import { AppError, ERROR_STATUS, type ErrorCode, gitHubError, handleError, reasonOf } from './errors';
@@ -48,7 +49,7 @@ describe('error responses', () => {
   });
 
   it('answers unknown API routes with the same shape', async () => {
-    const response = await app.request('/api/nowhere');
+    const response = await app.request('/api/nowhere', {}, env);
 
     expect(response.status).toBe(404);
     expect(await response.json()).toMatchObject({ error: { code: 'NOT_FOUND', reason: 'invalid-request' } });
