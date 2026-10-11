@@ -1,0 +1,10 @@
+# Local secrets for `wrangler dev`: copy to .dev.vars (git-ignored) and fill in sandbox values.
+# In staging and production set them with `wrangler secret put <NAME> --env <env>`.
+GITHUB_APP_ID=123456
+GITHUB_APP_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nPKCS8-KEY-WITHOUT-LINE-BREAKS\n-----END PRIVATE KEY-----"
+GITHUB_WEBHOOK_SECRET=change-me
+GITHUB_CLIENT_ID=Iv1.0000000000000000
+GITHUB_CLIENT_SECRET=change-me
+ORCID_CLIENT_ID=APP-0000000000000000
+ORCID_CLIENT_SECRET=change-me
+SESSION_SECRET=at-least-32-random-characters-here

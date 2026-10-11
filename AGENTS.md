@@ -5,5 +5,5 @@ giscus (see NOTICE.md).
 
 - Read `docs/specs/ROADMAP.md` first; work spec by spec (`docs/specs/<NNN>-<feature>/spec.md → plan.md → tasks.md`).
 - Decisions live in `docs/adr/`.
-- Runtime target: Cloudflare Workers (ADR 0002). Until spec 001 lands, the upstream Next.js code is still in place.
+- Runtime: Cloudflare Workers (ADR 0002): API in `src/worker`, widget in `src/widget`, embed script in `src/client`. The upstream Next.js app is gone (spec 001 T10).
 - Never commit to `main` directly; signed commits; Conventional Commits.
