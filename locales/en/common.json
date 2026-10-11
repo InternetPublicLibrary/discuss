@@ -104,5 +104,10 @@
   "reason.invalid-request": "Something went wrong loading the comments.",
   "reason.internal": "Something went wrong loading the comments.",
   "noCommentsYet": "No comments yet. Be the first to start the conversation.",
-  "signInToCommentSoon": "Sign-in to comment is coming soon."
+  "signInToCommentSoon": "Sign-in to comment is coming soon.",
+  "loadEarlierReplies": {
+    "0": "Load {{count}} earlier replies",
+    "one": "Load {{count}} earlier reply",
+    "other": "Load {{count}} earlier replies"
+  }
 }

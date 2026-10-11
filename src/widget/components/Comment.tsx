@@ -1,5 +1,6 @@
 import { useState } from 'preact/hooks';
-import type { Comment as CommentData } from '../../shared/types';
+import type { Comment as CommentData, Reply as ReplyData } from '../../shared/types';
+import { getJson } from '../lib/api';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
 import { ReactionSummary } from './Reactions';
@@ -7,13 +8,30 @@ import { Reply } from './Reply';
 
 const SHOWN_REPLIES = 5;
 
-export function Comment({ comment }: { comment: CommentData }) {
+export function Comment({ comment, repo }: { comment: CommentData; repo: string }) {
   const { t } = useI18n();
   const { formatDate, formatDistance } = useDateFormatters();
   const [showAll, setShowAll] = useState(false);
+  const [older, setOlder] = useState<{ replies: ReplyData[]; cursor: string | null }>({ replies: [], cursor: comment.repliesStartCursor });
+  const [loadingOlder, setLoadingOlder] = useState(false);
   const hidden = !!comment.deletedAt || comment.isMinimized;
-  const replies = showAll ? comment.replies : comment.replies.slice(-SHOWN_REPLIES);
-  const earlierLoaded = comment.replies.length - replies.length;
+  const allLoaded = [...older.replies, ...comment.replies];
+  const replies = showAll ? allLoaded : allLoaded.slice(-SHOWN_REPLIES);
+  const earlierLoaded = allLoaded.length - replies.length;
+  const unfetched = Math.max(0, comment.replyCount - allLoaded.length);
+
+  // More than 100 replies: older pages come from the API with GitHub's cursor (#22).
+  const loadOlder = () => {
+    if (!older.cursor || loadingOlder) return;
+    setLoadingOlder(true);
+    const params = new URLSearchParams({ repo, comment: comment.id, before: older.cursor });
+    getJson<{ replies: ReplyData[]; startCursor: string | null }>(`/api/comments/replies?${params}`)
+      .then((page) => {
+        setOlder((current) => ({ replies: [...page.replies, ...current.replies], cursor: page.startCursor }));
+        setShowAll(true);
+      })
+      .finally(() => setLoadingOlder(false));
+  };
 
   return (
     <article className="gsc-comment" aria-label={`${comment.author.login}, ${formatDate(comment.createdAt)}`}>
@@ -60,6 +78,13 @@ export function Comment({ comment }: { comment: CommentData }) {
         ) : null}
         {replies.length > 0 ? (
           <div className="color-bg-inset color-border-primary gsc-replies rounded-b-md">
+            {unfetched > 0 && older.cursor && (showAll || earlierLoaded === 0) ? (
+              <div className="flex h-8 items-center mb-2 pl-4">
+                <button type="button" className="color-text-link underline" onClick={loadOlder} disabled={loadingOlder}>
+                  {loadingOlder ? t('loading') : t('loadEarlierReplies', { count: unfetched })}
+                </button>
+              </div>
+            ) : null}
             {earlierLoaded > 0 ? (
               <div className="flex h-8 items-center mb-2 pl-4">
                 <button type="button" className="color-text-link underline" onClick={() => setShowAll(true)}>

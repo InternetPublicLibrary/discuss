@@ -95,7 +95,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
         {notFound || total === 0 ? <p className="color-text-secondary">{t('noCommentsYet')}</p> : null}
 
         <div className={`gsc-timeline ${total ? '' : 'hidden'}`}>
-          {data.frontComments.map((comment) => <Comment key={comment.id} comment={comment} />)}
+          {data.frontComments.map((comment) => <Comment key={comment.id} comment={comment} repo={config.repo} />)}
           {data.numHidden > 0 ? (
             <div className="pagination-loader-container gsc-pagination">
               <button type="button" className="gsc-pagination-button color-border-primary" onClick={data.loadMore} disabled={data.isLoadingMore}>
@@ -104,7 +104,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
               </button>
             </div>
           ) : null}
-          {data.backComments.map((comment) => <Comment key={comment.id} comment={comment} />)}
+          {data.backComments.map((comment) => <Comment key={comment.id} comment={comment} repo={config.repo} />)}
         </div>
 
         {discussion?.locked ? null : <p className="color-text-secondary text-sm mt-4">{t('signInToCommentSoon')}</p>}
