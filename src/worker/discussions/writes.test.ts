@@ -128,17 +128,35 @@ describe('writes by GitHub readers', () => {
 });
 
 describe('POST /api/discussions/ensure (#16)', () => {
+  /** A page whose term is the canonical pathname of an existing IPL page. */
+  async function realPage() {
+    const term = `pt-BR/ensure-${Date.now()}-${unique++}`;
+    await env.DISCUSS_KV.put(await mapKey(REPO, 'DIC_c', term), JSON.stringify({ id: 'D_page', number: 3 }));
+    return { repo: REPO, categoryId: 'DIC_c', term, title: 'Página', backLink: `http://localhost:4000/${term}/` };
+  }
+  const site = (status: number) => github().on('GET', /^\/pt-BR\/ensure-/, new Response('<html>', { status }));
+
   it('returns the page discussion URL, only for the widget origin', async () => {
-    const created = await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': `203.0.113.${unique++ % 250}` });
+    const created = await post(site(200), '/api/discussions/ensure', await realPage(), { 'cf-connecting-ip': `203.0.113.${unique++ % 250}` });
 
     expect(await created.json()).toEqual({ number: 3, url: `https://github.com/${REPO}/discussions/3` });
-    expect((await post(github(), '/api/discussions/ensure', await page(), { origin: 'https://evil.example' })).status).toBe(403);
+    expect((await post(site(200), '/api/discussions/ensure', await realPage(), { origin: 'https://evil.example' })).status).toBe(403);
+  });
+
+  it('refuses terms that are not the pathname of the page link, links outside IPL, and pages that do not exist', async () => {
+    const ip = { 'cf-connecting-ip': `192.0.2.${unique++ % 250}` };
+    const real = await realPage();
+
+    expect((await post(site(200), '/api/discussions/ensure', { ...real, term: 'invented/term' }, ip)).status).toBe(403);
+    expect((await post(site(200), '/api/discussions/ensure', { ...real, backLink: `https://evil.example/${real.term}/` }, ip)).status).toBe(403);
+    expect((await post(site(404), '/api/discussions/ensure', await realPage(), ip)).status).toBe(404);
+    expect((await post(site(301), '/api/discussions/ensure', await realPage(), ip)).status).toBe(404);
   });
 
   it('limits anonymous creation per IP', async () => {
     const ip = `198.51.100.${unique++ % 250}`;
-    for (let index = 0; index < 10; index += 1) await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': ip });
+    for (let index = 0; index < 10; index += 1) await post(site(200), '/api/discussions/ensure', await realPage(), { 'cf-connecting-ip': ip });
 
-    expect((await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': ip })).status).toBe(429);
+    expect((await post(site(200), '/api/discussions/ensure', await realPage(), { 'cf-connecting-ip': ip })).status).toBe(429);
   });
 });
