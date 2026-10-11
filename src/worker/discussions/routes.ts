@@ -5,10 +5,12 @@ import { gitHubAppFromEnv } from '../github/client';
 import { repositoryCategories } from './categories';
 import type { WebhookHandler } from '../webhook';
 import { bumpCacheVersion, parseQuery, readDiscussion, repoRef } from './read';
+import { readReplies } from './replies';
 
 export function discussionRoutes(fetcher?: typeof fetch) {
   const routes = new Hono<{ Bindings: Env }>();
   routes.get('/discussions', async (c) => c.json(await readDiscussion(c, parseQuery(c), fetcher)));
+  routes.get('/comments/replies', async (c) => c.json(await readReplies(c, fetcher)));
   // Repository id and categories with emoji, for the configuration page and embed checks (#25).
   routes.get('/discussions/categories', async (c) => {
     const repo = assertRepositoryAllowed(c.req.query('repo'), loadAllowLists(c.env));

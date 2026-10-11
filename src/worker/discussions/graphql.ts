@@ -31,3 +31,13 @@ export const DISCUSSION_BY_NUMBER = `query($owner: String! $name: String! $numbe
   ${RATE_LIMIT}
   repository(owner: $owner, name: $name) { discussion(number: $number) { ${DISCUSSION_FIELDS} } }
 }`;
+
+/** Older replies of one comment (issue #22); the comment's repository is returned so it can be checked. */
+export const COMMENT_REPLIES = `query($id: ID! $before: String) {
+  node(id: $id) {
+    ... on DiscussionComment {
+      discussion { repository { nameWithOwner } }
+      replies(last: 100 before: $before) { totalCount pageInfo { hasPreviousPage startCursor } nodes { ${REPLY_FIELDS} } }
+    }
+  }
+}`;
