@@ -13,6 +13,8 @@ export interface Env {
   ALLOWED_REPOSITORIES?: string;
   /** One Durable Object per page mapping: serialises find-or-create of its discussion (#10). */
   DISCUSSION_LOCK: DurableObjectNamespace<import('./discussions/find-or-create').DiscussionLock>;
+  /** Comma-separated logins whose discussions also count as a page's (e.g. `giscus[bot]` for older threads) (var). */
+  TRUSTED_DISCUSSION_AUTHORS?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret of the App webhook (secret). */

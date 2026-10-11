@@ -60,6 +60,7 @@ Decisions: [docs/adr/](docs/adr/). Contributor notes: [AGENTS.md](AGENTS.md).
 | `IPL_ALLOWED_ORIGINS` | var | Exact `https` origins of the IPL site (comma-separated; `http://localhost` only in development) |
 | `IPL_ORIGIN_PATTERNS` | var | Optional anchored patterns with one `*` label, e.g. `https://*.ipl-preview.pages.dev` |
 | `ALLOWED_REPOSITORIES` | var | `owner/repo` list whose discussions the service serves (production: `InternetPublicLibrary/en-US`, `InternetPublicLibrary/pt-BR`) |
+| `TRUSTED_DISCUSSION_AUTHORS` | var | Optional logins whose discussions also count as a page's (e.g. `giscus[bot]` for threads created before discuss); otherwise only the IPL App's discussions are used |
 | `GITHUB_APP_ID` | var | Id of the IPL GitHub App |
 | `GITHUB_WEBHOOK_SECRET` | secret | Webhook secret of the App (events `discussion`, `discussion_comment`, `installation`; content type JSON) |
 | `GITHUB_APP_PRIVATE_KEY` | secret | The App's private key in PKCS#8 PEM (`openssl pkcs8 -topk8 -nocrypt -in key.pem`) |

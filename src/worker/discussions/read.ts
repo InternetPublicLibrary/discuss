@@ -6,6 +6,7 @@ import type { Env } from '../env';
 import { AppError, log } from '../errors';
 import { gitHubAppFromEnv, type RepositoryRef } from '../github/client';
 import { adaptDiscussion, type GDiscussion } from './adapt';
+import { isTrustedDiscussion, trustedAuthors } from './find-or-create';
 import { DISCUSSION_BY_NUMBER, DISCUSSION_BY_SEARCH } from './graphql';
 
 /** Anonymous reads are cached this long; webhook events for the repository invalidate them sooner (#9). */
@@ -125,7 +126,9 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
       .filter(Boolean)
       .join(' ');
     const data = await github.graphql<SearchData>(repository, DISCUSSION_BY_SEARCH, { query: search, ...pagination });
-    discussion = data.search.discussionCount > 0 ? (data.search.nodes[0] ?? null) : null;
+    // Search can match a discussion anyone opened with a copied hash or title: only the App's (or trusted) count.
+    const trusted = trustedAuthors(c.env);
+    discussion = data.search.nodes.find((node) => isTrustedDiscussion(node, trusted)) ?? null;
     rateLimit = data.rateLimit;
   }
 

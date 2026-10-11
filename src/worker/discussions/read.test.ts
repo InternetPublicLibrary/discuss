@@ -22,7 +22,7 @@ const comment = (id: string, overrides: Partial<GComment> = {}): GComment => ({
   replies: { totalCount: 0, nodes: [] }, ...overrides,
 });
 const discussion = (comments: GComment[]): GDiscussion => ({
-  id: 'D_1', number: 7, url: 'https://github.com/x/discussions/7', locked: false, repository: { nameWithOwner: REPO }, reactions: { totalCount: 1 },
+  id: 'D_1', number: 7, url: 'https://github.com/x/discussions/7', locked: false, viewerDidAuthor: true, author: { login: 'ipl-discuss[bot]' }, repository: { nameWithOwner: REPO }, reactions: { totalCount: 1 },
   reactionGroups: [{ content: 'THUMBS_UP', users: { totalCount: 1 }, viewerHasReacted: false }],
   comments: { totalCount: comments.length, pageInfo: { startCursor: null, hasNextPage: false, hasPreviousPage: false, endCursor: null }, nodes: comments },
 });
@@ -127,6 +127,25 @@ describe('reads after creation (#10)', () => {
 
     expect(response.status).toBe(200);
     expect(((await response.json()) as { discussion: { number: number } }).discussion.number).toBe(42);
+  });
+});
+
+describe('mapping spoofing', () => {
+  it('ignores a discussion someone else opened with a copied hash', async () => {
+    const spoof = { ...discussion([comment('C1')]), viewerDidAuthor: false, author: { login: 'mallory' } };
+    const { request } = setup(spoof);
+
+    expect((await request(termPath())).status).toBe(404);
+  });
+
+  it('accepts discussions by a configured trusted author (older giscus threads)', async () => {
+    const legacy = { ...discussion([comment('C1')]), viewerDidAuthor: false, author: { login: 'giscus[bot]' } };
+    const fake = new FakeGitHub().withInstallation().on('POST', /^\/graphql$/, { data: { search: { discussionCount: 1, nodes: [legacy] } } });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.route('/api', discussionRoutes(fake.fetch));
+
+    expect((await app.request(termPath(), {}, { ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem, TRUSTED_DISCUSSION_AUTHORS: 'giscus[bot]' })).status).toBe(200);
   });
 });
 
