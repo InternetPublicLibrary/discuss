@@ -10,5 +10,5 @@ Each task is one pull request.
 - [x] T6 Categories and ported upstream fixes (#25)
 - [x] T7 Widget port to Vite with strict CSP and security headers (#7)
 - [x] T8 Replies pagination (#22); reactions follow writes in spec 002 (#20)
-- [ ] T9 client.js: lazy loading, ready/theme API, error reasons (#24, #12, #23 client side)
+- [x] T9 client.js: lazy loading, ready/theme API, error reasons (#24, #12, #23 client side)
 - [ ] T10 Remove Next.js, Yarn 1 and Vercel config (#5)

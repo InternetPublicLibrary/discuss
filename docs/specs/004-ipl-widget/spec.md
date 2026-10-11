@@ -39,3 +39,22 @@ Other languages beyond the existing giscus locales.
   link, the term and its hash.
 - One discussion per page: creation happens on the first comment, server-side, through one Durable Object per mapping
   (see spec 001 plan); the category id must belong to the repository and match `data-category`.
+
+## client.js API and events (issues #12, #23, #24)
+
+- Load: the iframe is created when its container comes within one viewport of the screen (IntersectionObserver), or
+  at once with `data-loading="eager"` or where IntersectionObserver is missing. Running the script again (client-side
+  navigation) reuses the `.discuss` container and never stacks iframes.
+- A page with no term (e.g. `data-mapping="specific"` without `data-term`) loads nothing and logs one warning.
+- `window.discuss.setTheme(name)` / `window.discuss.setConfig({ theme })`: queued until the widget is ready, then
+  delivered; the latest value wins. The widget accepts settings only from the embedding page's origin.
+- DOM events on the `.discuss` container (they bubble): `discuss:ready` (once per load), `discuss:error`
+  `{ reason }`, `discuss:metadata` `{ discussion }`. The iframe height follows the widget's content.
+- Reasons (`src/shared/reasons.ts`): `empty-term`, `repo-not-found`, `repo-not-allowed`, `category-mismatch`,
+  `origin-not-allowed`, `rate-limited`, `github-unavailable`, `signed-out`, `discussion-not-found`,
+  `invalid-request`, `internal`. On a site that is not allowed, client.js shows "Comments are not available on this
+  site." and dispatches `discuss:error { reason: "origin-not-allowed" }`.
+- Nothing secret travels in URLs: the widget receives the page address without query or fragment; client.js never
+  reads or stores sessions.
+- Strict CSP on the IPL site: `script-src` and `frame-src` must allow the discuss origin; `connect-src` must allow it
+  for the allow-list check. No `unsafe-*` source is needed.
