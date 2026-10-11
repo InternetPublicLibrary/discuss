@@ -5,6 +5,10 @@ export interface Env {
   ASSETS: Fetcher;
   /** KV: GitHub tokens, caches, sessions. */
   DISCUSS_KV: KVNamespace;
+  /** GitHub App id (var). */
+  GITHUB_APP_ID?: string;
+  /** GitHub App private key, PKCS#8 PEM (secret). */
+  GITHUB_APP_PRIVATE_KEY?: string;
 }
 
 declare global {
