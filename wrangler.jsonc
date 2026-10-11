@@ -1,0 +1,31 @@
+// discuss — Cloudflare Workers configuration (spec 001). Top level = local development and tests.
+// Secrets are never committed: see README "Configuration".
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ipl-discuss-dev",
+  "main": "src/worker/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  // The widget build; the Worker answers /api/* first and serves everything else from here.
+  "assets": { "directory": "./dist/widget", "binding": "ASSETS", "run_worker_first": ["/api/*"] },
+  "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "discuss-kv-dev" }],
+  "vars": {
+    "ENVIRONMENT": "development"
+  },
+  "env": {
+    "staging": {
+      "name": "ipl-discuss-staging",
+      "workers_dev": false,
+      "routes": [{ "pattern": "discuss.staging.ipl.better-web.org", "custom_domain": true }],
+      "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_STAGING_KV_ID" }],
+      "vars": { "ENVIRONMENT": "staging" }
+    },
+    "production": {
+      "name": "ipl-discuss",
+      "workers_dev": false,
+      "routes": [{ "pattern": "discuss.ipl.better-web.org", "custom_domain": true }],
+      "kv_namespaces": [{ "binding": "DISCUSS_KV", "id": "REPLACE_WITH_PRODUCTION_KV_ID" }],
+      "vars": { "ENVIRONMENT": "production" }
+    }
+  }
+}

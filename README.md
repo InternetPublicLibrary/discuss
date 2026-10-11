@@ -52,6 +52,19 @@ Defined in [spec 004](docs/specs/004-ipl-widget/spec.md):
 
 Decisions: [docs/adr/](docs/adr/). Contributor notes: [AGENTS.md](AGENTS.md).
 
+## Development
+
+Node.js 22+ and npm.
+
+```bash
+npm ci
+npm run dev          # builds the widget, then wrangler dev on http://localhost:8787
+npm run check        # lint + typecheck + tests (API in workerd, widget in happy-dom) + build
+```
+
+The upstream giscus code (Next.js: `pages/`, `components/`, `lib/`, `services/`) stays in the tree for reference
+while it is ported to `src/` (spec 001); it is not built or deployed.
+
 ## Related
 
 [IPLibrary-website](https://github.com/InternetPublicLibrary/IPLibrary-website) (consumer, spec 004) ·

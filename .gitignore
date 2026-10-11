@@ -44,3 +44,9 @@ public/themes/
 
 # CSS variables purging script (for development)
 styles/themes/reference.css
+
+# Workers
+/dist/
+.wrangler/
+.dev.vars*
+!.dev.vars.example

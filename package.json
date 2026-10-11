@@ -1,66 +1,53 @@
 {
-  "name": "giscus.app",
-  "version": "0.0.0",
-  "private": false,
-  "browserslist": [
-    ">0.3%",
-    "not ie 11",
-    "not dead",
-    "not op_mini all"
-  ],
-  "scripts": {
-    "cscript": "tsc client.ts --outDir public",
-    "cthemes": "postcss styles/themes/*.css --dir public/themes --config styles/themes",
-    "mscript": "google-closure-compiler < public/client.js --js_output_file public/client.js",
-    "dev": "yarn cscript --watch --preserveWatchOutput & yarn cthemes --watch & next dev",
-    "build": "yarn cscript && yarn cthemes && yarn mscript && next build",
-    "start": "next start",
-    "lint": "stylelint styles/**/*.css && eslint . --cache --max-warnings 0",
-    "lint:fix": "stylelint --fix styles/**/*.css && eslint --fix . --cache --max-warnings 0",
-    "format": "prettier --check .",
-    "format:fix": "prettier --write ."
+  "name": "@ipl/discuss",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internet Public Library comments: GitHub Discussions with GitHub and ORCID sign-in (hard fork of giscus)",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
   },
+  "scripts": {
+    "dev": "npm run build:widget && wrangler dev",
+    "build": "npm run build:widget",
+    "build:widget": "vite build",
+    "deploy:staging": "npm run build && wrangler deploy --env staging",
+    "deploy:production": "npm run build && wrangler deploy --env production",
+    "typecheck": "tsc -p tsconfig.worker.json && tsc -p tsconfig.widget.json",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "check": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/InternetPublicLibrary/discuss.git"
+  },
+  "homepage": "https://github.com/InternetPublicLibrary/discuss#readme",
   "dependencies": {
-    "@next/bundle-analyzer": "^12.3.4",
-    "@primer/octicons-react": "^19.14.0",
-    "@valkey/valkey-glide": "^2.4.0",
-    "dompurify": "^3.2.3",
-    "jsonwebtoken": "^9.0.2",
-    "lit-html": "^3.2.1",
-    "mathjax": "3.2.0",
-    "next": "^12.3.4",
-    "next-plugin-preact": "^3.0.7",
-    "next-translate": "^2.6.2",
-    "next-translate-plugin": "^2.6.2",
-    "preact": "^10.23.2",
-    "preact-render-to-string": "^6.5.12",
-    "react": "npm:@preact/compat",
-    "react-dom": "npm:@preact/compat",
-    "react-ssr-prepass": "npm:preact-ssr-prepass",
-    "swr": "^2.3.0"
+    "hono": "^4.13.13",
+    "preact": "^10.29.8"
   },
   "devDependencies": {
-    "@types/dompurify": "^3.2.0",
-    "@types/node": "^22.10.2",
-    "@types/react": "^18.0.9",
-    "@typescript-eslint/eslint-plugin": "^8.18.2",
-    "@typescript-eslint/parser": "^8.18.2",
-    "autoprefixer": "^10.4.20",
-    "cssnano": "^7.0.6",
-    "eslint": "^8.57.0",
-    "eslint-config-next": "^12.3.4",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
-    "google-closure-compiler": "^20240317.0.0",
-    "postcss": "^8.4.49",
-    "postcss-cli": "^11.0.0",
-    "postcss-import": "^16.1.0",
-    "prettier": "^3.4.2",
-    "prettier-plugin-tailwindcss": "^0.6.9",
-    "stylelint": "^16.12.0",
-    "stylelint-config-standard": "^36.0.1",
-    "tailwindcss": "^3.4.17",
-    "tailwindcss-vanilla-rtl": "^0.4.0",
-    "typescript": "^5.7.2"
+    "@babel/core": "^7.29.7",
+    "@cloudflare/vitest-plugin": "^1.4.0",
+    "@cloudflare/workers-types": "^5.20261011.1",
+    "@eslint/js": "^10.0.1",
+    "@preact/preset-vite": "^2.10.6",
+    "@vitest/eslint-plugin": "^1.6.27",
+    "eslint": "^10.12.0",
+    "globals": "^17.13.0",
+    "happy-dom": "^20.14.6",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.1",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.3",
+    "wrangler": "^4.149.0"
+  },
+  "allowScripts": {
+    "esbuild": true,
+    "workerd": true,
+    "fsevents": false
   }
 }
