@@ -13,6 +13,8 @@ export interface Env {
   ALLOWED_REPOSITORIES?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
+  /** Secret of the App webhook (secret). */
+  GITHUB_WEBHOOK_SECRET?: string;
   /** GitHub App private key, PKCS#8 PEM (secret). */
   GITHUB_APP_PRIVATE_KEY?: string;
 }
