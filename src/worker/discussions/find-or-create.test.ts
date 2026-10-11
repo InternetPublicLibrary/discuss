@@ -33,14 +33,14 @@ const CATEGORIES = { data: { repository: { id: 'R_1', discussionCategories: { no
 
 function github(options: { existing?: boolean; spoofed?: boolean; createDelayMs?: number } = {}) {
   let number = 100;
-  return new FakeGitHub().withInstallation().on('POST', /^\/graphql$/, async (call) => {
+  return new FakeGitHub().withInstallation().on('GET', /^\/app$/, { slug: 'ipl-discuss' }).on('POST', /^\/graphql$/, async (call) => {
     const { query } = call.body as { query: string };
     if (query.includes('discussionCategories')) return Response.json(CATEGORIES);
     if (query.includes('search(')) {
       const repo = (call.body as { variables: { query: string } }).variables.query.split(' ')[0]?.slice('repo:'.length) ?? '';
       const nodes = [
-        ...(options.spoofed ? [{ id: 'D_evil', number: 6, viewerDidAuthor: false, author: { login: 'mallory' }, repository: { nameWithOwner: repo } }] : []),
-        ...(options.existing ? [{ id: 'D_old', number: 5, viewerDidAuthor: true, author: { login: 'ipl-discuss[bot]' }, repository: { nameWithOwner: repo } }] : []),
+        ...(options.spoofed ? [{ id: 'D_evil', number: 6, createdAt: '2026-10-01T00:00:00Z', author: { login: 'mallory' }, repository: { nameWithOwner: repo } }] : []),
+        ...(options.existing ? [{ id: 'D_old', number: 5, createdAt: '2026-10-01T00:00:00Z', author: { login: 'ipl-discuss[bot]' }, repository: { nameWithOwner: repo } }] : []),
       ];
       return Response.json({ data: { search: { nodes } } });
     }

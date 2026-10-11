@@ -32,20 +32,37 @@ export interface FoundDiscussion {
 
 export const mapKey = async (repo: string, categoryId: string, term: string) => `map:${repo.toLowerCase()}:${categoryId}:${await digestHex(term)}`;
 
-const SEARCH = `query($query: String!) { search(type: DISCUSSION first: 10 query: $query) { nodes { ... on Discussion { id number viewerDidAuthor author { login } repository { nameWithOwner } } } } }`;
+const SEARCH = `query($query: String!) { search(type: DISCUSSION first: 10 query: $query) { nodes { ... on Discussion { id number createdAt author { login } repository { nameWithOwner } } } } }`;
+
+const CREATE = `mutation($input: CreateDiscussionInput!) { createDiscussion(input: $input) { discussion { id number } } }`;
+
+export interface Trust {
+  botLogin: string;
+  legacyAuthors: string[];
+  legacyCutoff: number | null;
+}
 
 /**
- * Anyone may open a discussion whose body copies an IPL page's hash; only discussions created by the IPL App (or by a
- * configured trusted author, e.g. the upstream giscus app for threads that predate discuss) count as the page's.
+ * Anyone may open a discussion whose body copies an IPL page's hash. A discussion counts as the page's only when the
+ * IPL App's bot wrote it, independent of which token ran the lookup; listed legacy authors (e.g. the upstream giscus
+ * app, which other sites can drive) count only for discussions created before LEGACY_DISCUSSIONS_BEFORE.
  */
-export function trustedAuthors(env: Pick<Env, 'TRUSTED_DISCUSSION_AUTHORS'>): string[] {
-  return (env.TRUSTED_DISCUSSION_AUTHORS ?? '').split(',').map((login) => login.trim().toLowerCase()).filter(Boolean);
+export async function trustFor(env: Pick<Env, 'TRUSTED_DISCUSSION_AUTHORS' | 'LEGACY_DISCUSSIONS_BEFORE'>, github: GitHubApp): Promise<Trust> {
+  const cutoff = Date.parse(env.LEGACY_DISCUSSIONS_BEFORE ?? '');
+  return {
+    botLogin: (await github.botLogin()).toLowerCase(),
+    legacyAuthors: (env.TRUSTED_DISCUSSION_AUTHORS ?? '').split(',').map((login) => login.trim().toLowerCase()).filter(Boolean),
+    legacyCutoff: Number.isFinite(cutoff) ? cutoff : null,
+  };
 }
 
-export function isTrustedDiscussion(node: { viewerDidAuthor?: boolean; author?: { login: string } | null }, trusted: string[]): boolean {
-  return node.viewerDidAuthor === true || (!!node.author && trusted.includes(node.author.login.toLowerCase()));
+export function isTrustedDiscussion(node: { author?: { login: string } | null; createdAt?: string }, trust: Trust): boolean {
+  const login = node.author?.login.toLowerCase();
+  if (!login) return false;
+  if (login === trust.botLogin) return true;
+  const created = Date.parse(node.createdAt ?? '');
+  return trust.legacyAuthors.includes(login) && trust.legacyCutoff !== null && Number.isFinite(created) && created < trust.legacyCutoff;
 }
-const CREATE = `mutation($input: CreateDiscussionInput!) { createDiscussion(input: $input) { discussion { id number } } }`;
 
 /** Plain text for the discussion body: no HTML or Markdown structure from page metadata, one paragraph, capped. */
 const plain = (value: string, max: number) => value.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -69,7 +86,7 @@ export function discussionBody(input: FindOrCreateInput, termHash: string, allow
     .join('\n\n');
 }
 
-export async function findOrCreateUnlocked(github: GitHubApp, kv: KVNamespace, input: FindOrCreateInput, env: Pick<Env, 'TRUSTED_DISCUSSION_AUTHORS' | 'IPL_ALLOWED_ORIGINS' | 'IPL_ORIGIN_PATTERNS' | 'ALLOWED_REPOSITORIES' | 'ENVIRONMENT'>): Promise<FoundDiscussion> {
+export async function findOrCreateUnlocked(github: GitHubApp, kv: KVNamespace, input: FindOrCreateInput, env: Pick<Env, 'TRUSTED_DISCUSSION_AUTHORS' | 'LEGACY_DISCUSSIONS_BEFORE' | 'IPL_ALLOWED_ORIGINS' | 'IPL_ORIGIN_PATTERNS' | 'ALLOWED_REPOSITORIES' | 'ENVIRONMENT'>): Promise<FoundDiscussion> {
   if (!isValidTerm(input.term)) throw new AppError('EMPTY_TERM', 'The page has no valid discussion term.');
   const key = await mapKey(input.repo, input.categoryId, input.term);
   const known = await kv.get<{ id: string; number: number }>(key, 'json');
@@ -82,9 +99,9 @@ export async function findOrCreateUnlocked(github: GitHubApp, kv: KVNamespace, i
 
   // Re-check right before creating: the discussion may exist from before this map (created by upstream giscus).
   const search = `repo:${input.repo.toLowerCase()} category:${searchPhrase(category.name)} in:body ${searchPhrase(termHash)}`;
-  type Node = { id: string; number: number; viewerDidAuthor?: boolean; author?: { login: string } | null; repository?: { nameWithOwner: string } };
+  type Node = { id: string; number: number; createdAt?: string; author?: { login: string } | null; repository?: { nameWithOwner: string } };
   const found = await github.graphql<{ search: { nodes: Node[] } }>(repository, SEARCH, { query: search });
-  const trusted = trustedAuthors(env);
+  const trusted = await trustFor(env, github);
   const existing = found.search.nodes.find(
     (node) => isTrustedDiscussion(node, trusted) && node.repository?.nameWithOwner.toLowerCase() === input.repo.toLowerCase(),
   );

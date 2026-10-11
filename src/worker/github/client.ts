@@ -165,6 +165,18 @@ export class GitHubApp {
     return body.data;
   }
 
+  /** The App's bot login (`<slug>[bot]`), the author of every discussion and comment the App creates; cached a day. */
+  async botLogin(): Promise<string> {
+    const cached = await this.options.kv.get('gh:app-bot-login');
+    if (cached) return cached;
+    const response = await this.send('GET', '/app', `Bearer ${await this.appJwt()}`);
+    if (!response.ok) throw await gitHubError(response, 'get app');
+    const { slug } = (await response.json()) as { slug: string };
+    const login = `${slug}[bot]`;
+    await this.options.kv.put('gh:app-bot-login', login, { expirationTtl: 24 * 60 * 60 });
+    return login;
+  }
+
   /** Like request, but returns null on 404 (e.g. a file that does not exist yet). */
   async requestOrNull<T>(repository: RepositoryRef, method: string, path: string, operation: string): Promise<T | null> {
     const token = await this.installationToken(repository);

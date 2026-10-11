@@ -15,6 +15,8 @@ export interface Env {
   DISCUSSION_LOCK: DurableObjectNamespace<import('./discussions/find-or-create').DiscussionLock>;
   /** Comma-separated logins whose discussions also count as a page's (e.g. `giscus[bot]` for older threads) (var). */
   TRUSTED_DISCUSSION_AUTHORS?: string;
+  /** ISO date: TRUSTED_DISCUSSION_AUTHORS count only for discussions created before it; unset = never (var). */
+  LEGACY_DISCUSSIONS_BEFORE?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret of the App webhook (secret). */

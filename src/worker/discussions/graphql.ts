@@ -6,7 +6,7 @@ const COMMENT_FIELDS = `id ${AUTHOR} viewerDidAuthor createdAt url authorAssocia
 export const REPLY_FIELDS = `${COMMENT_FIELDS} replyTo { id }`;
 
 const DISCUSSION_FIELDS = `
-  id number url locked viewerDidAuthor author { login }
+  id number url locked createdAt author { login }
   repository { nameWithOwner }
   reactions { totalCount }
   ${REACTION_GROUPS}
