@@ -4,7 +4,7 @@ Each task is one pull request.
 
 - [x] T1 Foundation: Hono Worker, Vite + Preact widget, Vitest (workerd + happy-dom), CI, Dependabot, CodeQL (#5, part)
 - [x] T2 Error reasons and GitHub App client with rate-limit handling (#23 server side, #9 tokens)
-- [ ] T3 Origin and repository allow-lists on every route (#8)
+- [x] T3 Origin and repository allow-lists on every route (#8)
 - [ ] T4 Discussion reads with edge cache and signed webhook invalidation (#9)
 - [ ] T5 Canonical pathname terms and find-or-create discussions (#11, #10)
 - [ ] T6 Categories and ported upstream fixes (#25)
