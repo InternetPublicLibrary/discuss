@@ -7,6 +7,13 @@ const assets = { fetch: async () => new Response('<!doctype html><main id="discu
 const request = (vars: Partial<Env> = {}) => app.request('https://discuss.example/widget?repo=o/r&term=x', {}, { ...env, ASSETS: assets, ...vars });
 
 describe('GET /widget (#7)', () => {
+  it.each(['/', '/index.html'])('never serves the widget document at %s without its headers', async (path) => {
+    const response = await app.request(`https://discuss.example${path}?repo=o/r&term=x`, {}, { ...env, ASSETS: assets });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get('location')).toBe('/widget');
+  });
+
   it('serves the widget with a strict CSP that needs no unsafe sources', async () => {
     const response = await request();
     const csp = response.headers.get('content-security-policy') ?? '';
@@ -17,6 +24,14 @@ describe('GET /widget (#7)', () => {
     expect(csp).toContain("style-src 'self'");
     expect(csp).toContain("default-src 'none'");
     expect(csp).not.toMatch(/unsafe-(inline|eval)/);
+  });
+
+  it('does not pass through a redirect or a non-HTML asset', async () => {
+    const redirecting = { fetch: async () => new Response(null, { status: 307, headers: { location: 'https://evil.example/' } }) } as unknown as Fetcher;
+    const response = await app.request('https://discuss.example/widget', {}, { ...env, ASSETS: redirecting });
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get('location')).toBeNull();
   });
 
   it('lets only IPL origins frame it', async () => {

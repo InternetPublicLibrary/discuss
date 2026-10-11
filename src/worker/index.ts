@@ -15,6 +15,9 @@ app.use('/api/*', originGuard());
 app.get('/api/health', (c) => c.json({ service: 'discuss', environment: c.env.ENVIRONMENT }));
 
 app.get('/widget', serveWidget);
+// The widget document exists only at /widget, where its CSP and frame-ancestors are set; never as a bare asset.
+app.get('/', (c) => c.redirect('/widget', 302));
+app.get('/index.html', (c) => c.redirect('/widget', 302));
 app.route('/api', discussionRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 
