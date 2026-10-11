@@ -7,5 +7,5 @@ export default defineConfig({
   reporter: process.env.CI ? 'github' : 'list',
   use: { baseURL: 'http://localhost:4173' },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
-  webServer: { command: 'node e2e/serve.mjs', url: 'http://localhost:4173/widget', reuseExistingServer: !process.env.CI },
+  webServer: { command: 'node e2e/serve.mjs', url: 'http://localhost:4174/', reuseExistingServer: !process.env.CI },
 });
