@@ -9,6 +9,8 @@ import type { Reason } from '../shared/reasons';
 export interface DiscussApi {
   setTheme(theme: string): void;
   setConfig(config: Record<string, unknown>): void;
+  /** Prefill the comment box with a quoted passage from the page (#19). */
+  quote(text: string): void;
 }
 
 type WidgetMessage =
@@ -97,6 +99,7 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
   let iframe: HTMLIFrameElement | null = null;
   let ready = false;
   const queue: Record<string, unknown>[] = [];
+  const pendingQuotes: string[] = [];
   let theme = data.theme ?? '';
 
   const emit = (type: string, detail: unknown) => container.dispatchEvent(new CustomEvent(type, { detail, bubbles: true }));
@@ -119,6 +122,7 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
       const pending = queue.splice(0);
       if (theme) pending.push({ theme });
       for (const config of pending) iframe.contentWindow?.postMessage({ discuss: { setConfig: config } }, discussOrigin);
+      for (const text of pendingQuotes.splice(0)) iframe.contentWindow?.postMessage({ discuss: { quote: text } }, discussOrigin);
       emit('discuss:ready', {});
     } else if (message.type === 'discuss:error') emit('discuss:error', { reason: message.reason });
     else if (message.type === 'discuss:metadata') emit('discuss:metadata', { discussion: message.discussion });
@@ -173,6 +177,10 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
     setConfig(config: Record<string, unknown>) {
       if (typeof config.theme === 'string') theme = config.theme;
       send(config);
+    },
+    quote(text: string) {
+      if (!iframe?.contentWindow || !ready) pendingQuotes.push(String(text));
+      else iframe.contentWindow.postMessage({ discuss: { quote: String(text) } }, discussOrigin);
     },
   };
   (win as unknown as { discuss: DiscussApi }).discuss = api;

@@ -5,6 +5,7 @@ import { useAuth } from '../lib/auth';
 import { processCommentBody } from '../lib/body';
 import { pageFields, type WidgetConfig } from '../lib/config';
 import { loadDraft, saveDraft } from '../lib/draft';
+import { subscribeQuotes } from '../lib/quote';
 import { useI18n } from '../lib/i18n';
 import { SignIn } from './SignIn';
 
@@ -29,6 +30,15 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
   const textarea = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => saveDraft(draftKey, text), [draftKey, text]);
+
+  // Quotes from "Quote reply" or the IPL page go into the main box only.
+  useEffect(() => {
+    if (replyToId) return;
+    return subscribeQuotes((markdown) => {
+      setText((current) => `${current}${current && !current.endsWith('\n\n') ? '\n\n' : ''}${markdown}`);
+      setTab('write');
+    });
+  }, [replyToId]);
 
   if (!identity) {
     return (

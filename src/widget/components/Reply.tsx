@@ -3,16 +3,21 @@ import type { WidgetConfig } from '../lib/config';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
 import { associationKey } from '../lib/association';
+import { useState } from 'preact/hooks';
 import { Author } from './Author';
+import { CommentMenu } from './CommentMenu';
+import { EditBox } from './EditBox';
 import { Hidden } from './Hidden';
 import { ReactionButtons } from './ReactionButtons';
 
-export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfig }) {
+export function Reply({ reply: initial, config }: { reply: ReplyData; config: WidgetConfig }) {
+  const [reply, setReply] = useState(initial);
+  const [editing, setEditing] = useState(false);
   const { t } = useI18n();
   const { formatDate, formatDistance } = useDateFormatters();
   const hidden = !!reply.deletedAt || reply.isMinimized;
   return (
-    <li className="gsc-reply">
+    <li id={`discuss-comment-${reply.id}`} className="gsc-reply">
       <div className="gsc-tl-line" />
       <div className={`flex ${hidden ? 'items-center' : ''}`}>
         <div className="gsc-reply-author-avatar">
@@ -40,7 +45,10 @@ export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfi
                   </time>
                 </a>
               </div>
-              {reply.lastEditedAt ? <span className="color-text-secondary gsc-reply-edited" title={t('lastEditedAt', { date: formatDate(reply.lastEditedAt) })}>{t('edited')}</span> : null}
+              <div className="flex items-center gap-1">
+                {reply.lastEditedAt ? <span className="color-text-secondary gsc-reply-edited" title={t('lastEditedAt', { date: formatDate(reply.lastEditedAt) })}>{t('edited')}</span> : null}
+                <CommentMenu item={reply} config={config} onEdit={() => setEditing(true)} onDeleted={() => setReply({ ...reply, deletedAt: new Date().toISOString() })} />
+              </div>
             </div>
           ) : null}
           {reply.isMinimized && !reply.deletedAt ? (
@@ -49,6 +57,8 @@ export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfi
             <div className="markdown gsc-reply-content not-shown">
               <em className="color-text-secondary">{t('thisCommentWasDeleted')}</em>
             </div>
+          ) : editing ? (
+            <EditBox item={reply} config={config} onDone={(updated) => { if (updated) setReply({ ...reply, ...updated }); setEditing(false); }} />
           ) : (
             <div dir="auto" className="markdown gsc-reply-content" dangerouslySetInnerHTML={{ __html: processCommentBody(reply.bodyHTML) }} />
           )}

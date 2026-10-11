@@ -4,6 +4,7 @@ import { AuthProvider } from './lib/auth';
 import type { WidgetConfig } from './lib/config';
 import { I18nProvider, loadMessages, type Messages, resolveLocale } from './lib/i18n';
 import { postToParent } from './lib/messages';
+import { sendQuote } from './lib/quote';
 import { applyTheme } from './lib/theme';
 
 /** The widget: loads translations and the theme, then the discussion; tells the IPL page it is ready and its height. */
@@ -21,8 +22,10 @@ export function App({ config }: { config: WidgetConfig }) {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (!config.parentOrigin || event.origin !== config.parentOrigin || event.source !== window.parent) return;
-      const setConfig = (event.data as { discuss?: { setConfig?: { theme?: unknown } } } | null)?.discuss?.setConfig;
-      if (typeof setConfig?.theme === 'string') setTheme(setConfig.theme);
+      const message = (event.data as { discuss?: { setConfig?: { theme?: unknown }; quote?: unknown } } | null)?.discuss;
+      if (typeof message?.setConfig?.theme === 'string') setTheme(message.setConfig.theme);
+      // A passage quoted from the IPL page (plain text only, capped) prefills the comment box (#19).
+      if (typeof message?.quote === 'string') sendQuote(message.quote.slice(0, 4000));
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);

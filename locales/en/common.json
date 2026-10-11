@@ -136,5 +136,15 @@
   "minimized.resolved": "resolved",
   "showHidden": "Show comment",
   "hideHidden": "Hide comment",
-  "communityGuidelines": "Community guidelines"
+  "communityGuidelines": "Community guidelines",
+  "commentMenu": "Comment actions",
+  "copyLink": "Copy link",
+  "copyGitHubLink": "Copy GitHub link",
+  "linkCopied": "Link copied.",
+  "quoteReply": "Quote reply",
+  "edit": "Edit",
+  "save": "Save",
+  "delete": "Delete",
+  "confirmDelete": "Delete this comment?",
+  "report": "Report"
 }
