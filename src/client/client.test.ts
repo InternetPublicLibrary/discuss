@@ -133,4 +133,35 @@ describe('boot', () => {
     expect(frame()?.style.height).toBe('322px');
     expect(events).toContainEqual({ reason: 'rate-limited' });
   });
+
+  it('a re-run for another page stops the previous one, so no stale iframe appears later (review)', async () => {
+    const script = setup({}, '/pt-BR/a/');
+    boot(script);
+    const first = intersect;
+    window.history.replaceState(null, '', '/pt-BR/b/');
+    boot(script);
+
+    first?.([{ isIntersecting: true }]);
+    intersect?.([{ isIntersecting: true }]);
+
+    await vi.waitFor(() => expect(document.querySelectorAll('iframe.discuss-frame')).toHaveLength(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(document.querySelectorAll('iframe.discuss-frame')).toHaveLength(1);
+    expect(frame()?.src).toContain(encodeURIComponent('/pt-BR/b/'));
+  });
+
+  it('asks the widget to reveal a linked comment and scrolls to it (#19)', async () => {
+    const script = setup({ loading: 'eager' }, '/pt-BR/a/#discuss-comment-C1');
+    const scroll = vi.spyOn(window, 'scrollTo').mockImplementation(() => undefined);
+    boot(script);
+    await vi.waitFor(() => expect(frame()).not.toBeNull());
+    const posted = vi.spyOn(frame()?.contentWindow as Window, 'postMessage');
+
+    widgetMessage({ type: 'discuss:ready' });
+    widgetMessage({ type: 'discuss:scroll', top: 120 });
+
+    expect(posted).toHaveBeenCalledWith({ discuss: { scrollTo: 'discuss-comment-C1' } }, ORIGIN);
+    expect(scroll).toHaveBeenCalledWith({ top: expect.any(Number) });
+  });
 });
+

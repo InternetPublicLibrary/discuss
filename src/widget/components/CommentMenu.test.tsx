@@ -13,14 +13,21 @@ const comment = (overrides: Partial<CommentData>): CommentData => ({
 const page = (comments: CommentData[]) => ({ viewer: null, discussion: { id: 'D', number: 1, url: 'u', locked: false, totalCommentCount: comments.length, totalReplyCount: 0, pageInfo: { startCursor: null, hasNextPage: false, hasPreviousPage: false, endCursor: null }, repository: { nameWithOwner: 'o/r' }, reactionCount: 0, reactions: {}, comments } });
 
 async function show(comments: CommentData[], query = '?repo=o/r&term=x&origin=https://ipl.example/pt-BR/x/', waitForArticle = true) {
-  const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => (String(input) === '/api/session' ? Response.json(ME) : String(input).startsWith('/api/orcid/comments/') ? new Response(null, { status: 204 }) : Response.json(page(comments))));
+  const spy = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+    const url = String(input);
+    if (url === '/api/session') return Response.json(ME);
+    if (url.includes('/source?')) return Response.json({ body: 'Primeira linha\nSegunda' });
+    if (url.startsWith('/api/orcid/comments/') && init?.method === 'DELETE' && url.includes('C_fail')) return Response.json({ error: { reason: 'rate-limited' } }, { status: 429 });
+    if (url.startsWith('/api/orcid/comments/')) return new Response(null, { status: 204 });
+    return Response.json(page(comments));
+  });
   const root = document.body.appendChild(document.createElement('div'));
   render(<App config={readConfig(query)} />, root);
   if (waitForArticle) await vi.waitFor(() => expect(root.querySelector('article')).not.toBeNull());
   await vi.waitFor(() => expect(root.textContent).toContain('Signed in as'));
   return { root, spy };
 }
-const menuItems = (article: Element) => [...article.querySelectorAll('[role="menuitem"]')].map((item) => item.textContent);
+const menuItems = (article: Element) => [...article.querySelectorAll('.gsc-comment-menu button, .gsc-comment-menu a')].map((item) => item.textContent);
 
 afterEach(() => {
   // Unmount so a previous test's comment box no longer listens for quotes.
@@ -47,7 +54,7 @@ describe('comment menu (#19)', () => {
     const write = vi.fn(async () => undefined);
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: write }, configurable: true });
     const { root } = await show([comment({})]);
-    ([...root.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === 'Copy link') as HTMLButtonElement).click();
+    ([...root.querySelectorAll('.gsc-comment-menu button, .gsc-comment-menu a')].find((item) => item.textContent === 'Copy link') as HTMLButtonElement).click();
 
     await vi.waitFor(() => expect(write).toHaveBeenCalledWith('https://ipl.example/pt-BR/x/#discuss-comment-C1'));
     expect(root.querySelector('#discuss-comment-C1')).not.toBeNull();
@@ -55,14 +62,14 @@ describe('comment menu (#19)', () => {
 
   it('quote reply puts the text into the comment box with "> " prefixes', async () => {
     const { root } = await show([comment({})]);
-    ([...root.querySelectorAll('[role="menuitem"]')].find((item) => item.textContent === 'Quote reply') as HTMLButtonElement).click();
+    ([...root.querySelectorAll('.gsc-comment-menu button, .gsc-comment-menu a')].find((item) => item.textContent === 'Quote reply') as HTMLButtonElement).click();
 
     await vi.waitFor(() => expect((root.querySelector('textarea[aria-label="Write a comment"]') as HTMLTextAreaElement).value).toBe('> Primeira linha\n> Segunda\n\n'));
   });
 
   it('deletes after a confirmation step, without browser dialogs', async () => {
     const { root, spy } = await show([comment({ orcidAuthor: { id: '0000-0002-1825-0097', name: 'Josiah Carberry', profileUrl: 'x' } })]);
-    const item = (label: string) => [...root.querySelectorAll('[role="menuitem"]')].find((element) => element.textContent === label) as HTMLButtonElement;
+    const item = (label: string) => [...root.querySelectorAll('.gsc-comment-menu button, .gsc-comment-menu a')].find((element) => element.textContent === label) as HTMLButtonElement;
     item('Delete').click();
     await vi.waitFor(() => expect(item('Delete this comment?')).toBeDefined());
     item('Delete this comment?').click();
@@ -79,4 +86,23 @@ describe('comment menu (#19)', () => {
 
     await vi.waitFor(() => expect(area().value).toBe('> Trecho do recurso\n\n'));
   });
+
+  it('starts editing from the comment’s Markdown, not an empty box (review)', async () => {
+    const { root } = await show([comment({ orcidAuthor: { id: '0000-0002-1825-0097', name: 'Josiah Carberry', profileUrl: 'x' } })]);
+    ([...root.querySelectorAll('.gsc-comment-menu button')].find((item) => item.textContent === 'Edit') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => expect((root.querySelector('textarea[aria-label="Edit"]') as HTMLTextAreaElement).value).toBe('Primeira linha\nSegunda'));
+  });
+
+  it('shows why a delete failed and leaves the comment (review)', async () => {
+    const { root } = await show([comment({ id: 'C_fail', orcidAuthor: { id: '0000-0002-1825-0097', name: 'Josiah Carberry', profileUrl: 'x' } })]);
+    const item = (label: string) => [...root.querySelectorAll('.gsc-comment-menu button')].find((element) => element.textContent === label) as HTMLButtonElement;
+    item('Delete').click();
+    await vi.waitFor(() => expect(item('Delete this comment?')).toBeDefined());
+    item('Delete this comment?').click();
+
+    await vi.waitFor(() => expect(root.textContent).toContain('Comments are temporarily unavailable'));
+    expect(root.textContent).not.toContain('This comment was deleted.');
+  });
 });
+

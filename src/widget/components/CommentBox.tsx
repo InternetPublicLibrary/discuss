@@ -25,7 +25,10 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
   const [text, setText] = useState(() => loadDraft(draftKey));
   const [tab, setTab] = useState<'write' | 'preview'>('write');
   const [preview, setPreview] = useState('');
+  const [previewFailed, setPreviewFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  // State updates are async: a ref stops a double click from posting twice.
+  const posting = useRef(false);
   const [error, setError] = useState('');
   const textarea = useRef<HTMLTextAreaElement>(null);
 
@@ -65,13 +68,16 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
   const showPreview = async () => {
     setTab('preview');
     setPreview('');
+    setPreviewFailed(false);
     const { html } = await post<{ html: string }>('/api/markdown', { repo: config.repo, text }).catch(() => ({ html: '' }));
     setPreview(html);
+    setPreviewFailed(!html);
   };
 
   const submit = async (event: Event) => {
     event.preventDefault();
-    if (!text.trim() || busy) return;
+    if (!text.trim() || posting.current) return;
+    posting.current = true;
     setBusy(true);
     setError('');
     try {
@@ -83,6 +89,7 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
     } catch (caught) {
       setError(caught instanceof ApiError ? t(`reason.${caught.reason}`) : t('postingFailed'));
     } finally {
+      posting.current = false;
       setBusy(false);
     }
   };
@@ -105,7 +112,7 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
           disabled={busy}
         />
       ) : (
-        <div className="markdown gsc-comment-box-preview" dangerouslySetInnerHTML={{ __html: preview ? processCommentBody(preview) : t('loadingPreview') }} />
+        <div className="markdown gsc-comment-box-preview" dangerouslySetInnerHTML={{ __html: preview ? processCommentBody(preview) : t(previewFailed ? 'previewFailed' : 'loadingPreview') }} />
       )}
       <div className="gsc-comment-box-bottom flex items-center justify-between gap-2">
         {signedIn}

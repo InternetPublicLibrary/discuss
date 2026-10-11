@@ -31,7 +31,8 @@ export function Comment({ comment: initial, config, discussionId, locked }: { co
   const allLoaded = [...older.replies, ...comment.replies, ...posted];
   const replies = showAll ? allLoaded : allLoaded.slice(-SHOWN_REPLIES);
   const earlierLoaded = allLoaded.length - replies.length;
-  const unfetched = Math.max(0, comment.replyCount - allLoaded.length);
+  // Replies posted here are not in replyCount, so they must not hide the older ones still on GitHub.
+  const unfetched = Math.max(0, comment.replyCount - older.replies.length - comment.replies.length);
 
   // More than 100 replies: older pages come from the API with GitHub's cursor (#22).
   const loadOlder = () => {

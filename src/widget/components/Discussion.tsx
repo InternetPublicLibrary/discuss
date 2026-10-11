@@ -128,6 +128,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
                 <span className="color-text-secondary">{t('hiddenItems', { count: data.numHidden })}</span>
                 <span className="color-text-link font-semibold">{data.isLoadingMore ? t('loading') : t('loadMore')}…</span>
               </button>
+              {data.moreError ? <p className="color-text-danger text-sm" role="alert">{t(`reason.${data.moreError.reason}`)}</p> : null}
             </div>
           ) : null}
           {visible([...data.backComments, ...added]).map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}

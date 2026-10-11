@@ -76,7 +76,7 @@ export function ReactionButtons({ config, reactions, subjectId, onSubject }: Pro
             type="button"
             className={`gsc-direct-reaction-button gsc-social-reaction-summary-item ${group.viewerHasReacted ? 'has-reacted' : ''}`}
             aria-pressed={group.viewerHasReacted}
-            aria-label={t(group.viewerHasReacted ? 'removeTheReaction' : 'addTheReaction', { reaction: t(key) })}
+            aria-label={`${t(group.viewerHasReacted ? 'removeTheReaction' : 'addTheReaction', { reaction: t(key) })}${group.count ? ` (${group.count})` : ''}`}
             onClick={() => void toggle(key)}
             disabled={pending}
           >
