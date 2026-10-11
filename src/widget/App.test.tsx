@@ -23,6 +23,15 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+/** fetch mock routed by path: no session unless given, `discussions` for the discussion reads. */
+function api(discussions: () => Response, session?: () => Response) {
+  return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+    const url = String(input);
+    if (url.startsWith('/api/session')) return session ? session() : Response.json({ error: { reason: 'signed-out' } }, { status: 401 });
+    return discussions();
+  });
+}
+
 describe('App', () => {
   it('reads the embed configuration', () => {
     expect(readConfig('?repo=o/r&term=pt-BR/x&strict=1&origin=https://ipl.example/pt-BR/x/&lang=pt-BR&inputPosition=top')).toMatchObject({
@@ -31,7 +40,7 @@ describe('App', () => {
   });
 
   it('renders comments with sanitised HTML and safe links', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(discussionPage));
+    api(() => Response.json(discussionPage));
     const root = document.createElement('div');
     render(<App config={readConfig('?repo=o/r&term=x')} />, root);
     await vi.waitFor(() => expect(root.textContent).toContain('1 comment'));
@@ -42,14 +51,14 @@ describe('App', () => {
   });
 
   it('shows a translated message for an error reason', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ error: { code: 'GITHUB_RATE_LIMITED', reason: 'rate-limited', message: 'x' } }, { status: 503 }));
+    api(() => Response.json({ error: { code: 'GITHUB_RATE_LIMITED', reason: 'rate-limited', message: 'x' } }, { status: 503 }));
     const root = document.createElement('div');
     render(<App config={readConfig('?repo=o/r&term=x')} />, root);
     await vi.waitFor(() => expect(root.querySelector('[role="alert"]')?.textContent).toBe('Comments are temporarily unavailable. Please try again later.'));
   });
 
   it('treats a page without a discussion as empty, not as an error', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json({ error: { code: 'DISCUSSION_NOT_FOUND', reason: 'discussion-not-found', message: 'x' } }, { status: 404 }));
+    api(() => Response.json({ error: { code: 'DISCUSSION_NOT_FOUND', reason: 'discussion-not-found', message: 'x' } }, { status: 404 }));
     const root = document.createElement('div');
     render(<App config={readConfig('?repo=o/r&term=x')} />, root);
     await vi.waitFor(() => expect(root.textContent).toContain('No comments yet'));
@@ -65,7 +74,7 @@ describe('App', () => {
 
 describe('settings from the IPL page (#12)', () => {
   it('applies a theme sent by the embedding page and ignores other senders', async () => {
-    vi.spyOn(globalThis, 'fetch').mockImplementation(async () => Response.json(discussionPage));
+    api(() => Response.json(discussionPage));
     const root = document.createElement('div');
     render(<App config={readConfig('?repo=o/r&term=x&origin=https://ipl.example/pt-BR/x/')} />, root);
     await vi.waitFor(() => expect(root.textContent).toContain('1 comment'));

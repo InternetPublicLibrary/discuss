@@ -1,21 +1,27 @@
 import { useState } from 'preact/hooks';
 import type { Comment as CommentData, Reply as ReplyData } from '../../shared/types';
+import { useAuth } from '../lib/auth';
+import type { WidgetConfig } from '../lib/config';
 import { getJson } from '../lib/api';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
-import { ReactionSummary } from './Reactions';
+import { CommentBox } from './CommentBox';
+import { ReactionButtons } from './ReactionButtons';
 import { Reply } from './Reply';
 
 const SHOWN_REPLIES = 5;
 
-export function Comment({ comment, repo }: { comment: CommentData; repo: string }) {
+export function Comment({ comment, config, discussionId, locked }: { comment: CommentData; config: WidgetConfig; discussionId: string | null; locked: boolean }) {
+  const repo = config.repo;
+  const { identity } = useAuth();
+  const [posted, setPosted] = useState<ReplyData[]>([]);
   const { t } = useI18n();
   const { formatDate, formatDistance } = useDateFormatters();
   const [showAll, setShowAll] = useState(false);
   const [older, setOlder] = useState<{ replies: ReplyData[]; cursor: string | null }>({ replies: [], cursor: comment.repliesStartCursor });
   const [loadingOlder, setLoadingOlder] = useState(false);
   const hidden = !!comment.deletedAt || comment.isMinimized;
-  const allLoaded = [...older.replies, ...comment.replies];
+  const allLoaded = [...older.replies, ...comment.replies, ...posted];
   const replies = showAll ? allLoaded : allLoaded.slice(-SHOWN_REPLIES);
   const earlierLoaded = allLoaded.length - replies.length;
   const unfetched = Math.max(0, comment.replyCount - allLoaded.length);
@@ -69,7 +75,7 @@ export function Comment({ comment, repo }: { comment: CommentData; repo: string 
             <div className="gsc-comment-reactions">
               {/* Upvotes cannot be toggled with app-issued tokens (#20): a count, not a control. */}
               {comment.upvoteCount > 0 ? <span className="gsc-social-reaction-summary-item color-text-secondary">▲ {t('upvotes', { count: comment.upvoteCount })}</span> : null}
-              {!hidden ? <ReactionSummary reactions={comment.reactions} /> : null}
+              {!hidden ? <ReactionButtons config={config} reactions={comment.reactions} subjectId={comment.id} /> : null}
             </div>
             <div className="gsc-comment-replies-count">
               <span className="color-text-tertiary text-xs">{t('replies', { count: comment.replyCount, plus: '' })}</span>
@@ -93,8 +99,13 @@ export function Comment({ comment, repo }: { comment: CommentData; repo: string 
               </div>
             ) : null}
             <ol className="list-none">
-              {replies.map((reply) => <Reply key={reply.id} reply={reply} />)}
+              {replies.map((reply) => <Reply key={reply.id} reply={reply} config={config} />)}
             </ol>
+          </div>
+        ) : null}
+        {identity && !locked && !hidden ? (
+          <div className="gsc-reply-box">
+            <CommentBox config={config} discussionId={discussionId} replyToId={comment.id} onPosted={({ reply }) => reply && setPosted((items) => [...items, reply])} />
           </div>
         ) : null}
       </div>

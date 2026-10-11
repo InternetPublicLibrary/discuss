@@ -19,7 +19,7 @@ export async function getJson<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     throw new ApiError(0, 'github-unavailable', 'Network error');
   }
-  const body = (await response.json().catch(() => ({}))) as { error?: { reason?: Reason; message?: string } };
+  const body = (response.status === 204 ? {} : await response.json().catch(() => ({}))) as { error?: { reason?: Reason; message?: string } };
   if (!response.ok) {
     const retryAfter = Number(response.headers.get('retry-after'));
     throw new ApiError(response.status, body.error?.reason ?? 'internal', body.error?.message ?? response.statusText, Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter : undefined);

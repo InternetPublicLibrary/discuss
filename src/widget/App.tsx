@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks';
 import { Discussion } from './components/Discussion';
+import { AuthProvider } from './lib/auth';
 import type { WidgetConfig } from './lib/config';
 import { I18nProvider, loadMessages, type Messages, resolveLocale } from './lib/i18n';
 import { postToParent } from './lib/messages';
@@ -43,7 +44,13 @@ export function App({ config }: { config: WidgetConfig }) {
   if (!messages) return null;
   return (
     <I18nProvider locale={locale} messages={messages.current} fallback={messages.fallback}>
-      {config.repo && (config.term || config.number) ? <Discussion config={config} /> : <p role="alert">{messages.current['reason.empty-term'] as string}</p>}
+      {config.repo && (config.term || config.number) ? (
+        <AuthProvider>
+          <Discussion config={config} />
+        </AuthProvider>
+      ) : (
+        <p role="alert">{messages.current['reason.empty-term'] as string}</p>
+      )}
     </I18nProvider>
   );
 }

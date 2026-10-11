@@ -1,9 +1,10 @@
 import type { Reply as ReplyData } from '../../shared/types';
+import type { WidgetConfig } from '../lib/config';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
-import { ReactionSummary } from './Reactions';
+import { ReactionButtons } from './ReactionButtons';
 
-export function Reply({ reply }: { reply: ReplyData }) {
+export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfig }) {
   const { t } = useI18n();
   const { formatDate, formatDistance } = useDateFormatters();
   const hidden = !!reply.deletedAt || reply.isMinimized;
@@ -42,7 +43,7 @@ export function Reply({ reply }: { reply: ReplyData }) {
           {!hidden ? (
             <div className="gsc-reply-footer">
               <div className="gsc-reply-reactions">
-                <ReactionSummary reactions={reply.reactions} />
+                <ReactionButtons config={config} reactions={reply.reactions} subjectId={reply.id} />
               </div>
             </div>
           ) : null}
