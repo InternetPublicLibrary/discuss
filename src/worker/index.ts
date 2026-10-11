@@ -28,4 +28,5 @@ app.route('/api', orcidRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 
 export { DiscussionLock } from './discussions/find-or-create';
+export { RateCounter } from './limits';
 export default app;

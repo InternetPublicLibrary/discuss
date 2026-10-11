@@ -5,6 +5,7 @@ import { assertWidgetWrite, githubToken, requireSession } from '../auth/sessions
 import { assertRepositoryAllowed, isAllowedOrigin, loadAllowLists } from '../config';
 import type { Env } from '../env';
 import { AppError, readJsonObject } from '../errors';
+import { takeOrThrow } from '../limits';
 import { gitHubAppFromEnv } from '../github/client';
 import { adaptComment, adaptReactionGroups, adaptReply, type GComment, type GReactionGroup, type GReply } from './adapt';
 import { findOrCreateDiscussion } from './find-or-create';
@@ -84,15 +85,51 @@ async function writer(c: AppContext, fetcher?: typeof fetch) {
   const found = await requireSession(c);
   assertWidgetWrite(c, found.session);
   const token = await githubToken(c, found, fetcher);
+  await limitWrites(c, `${found.session.identity.provider}:${found.session.identity.id}`);
   const body = await readJsonObject(c.req.raw, MAX_BODY + 8 * 1024);
   const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
   return { token, body, repo, github: gitHubAppFromEnv(c.env, fetcher) };
 }
 
 /** The discussion to write to: the one given, or the page's own (found or created by the App, #10). */
-export async function discussionIdFor(c: AppContext, body: Record<string, unknown>, repo: string): Promise<string> {
-  if (typeof body.discussionId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.discussionId)) return body.discussionId;
-  return (await findOrCreateDiscussion(c.env, pageInput(body, repo))).id;
+const NODE_REPOSITORY = `query($id: ID!) { node(id: $id) {
+  ... on Discussion { id locked repository { nameWithOwner } }
+  ... on DiscussionComment { id discussion { id locked repository { nameWithOwner } } }
+} }`;
+
+interface TargetNode {
+  node: { id?: string; locked?: boolean; repository?: { nameWithOwner: string }; discussion?: { id: string; locked: boolean; repository: { nameWithOwner: string } } } | null;
+}
+
+/**
+ * The discussion a write goes to, and the comment it replies to, must be in the allowed repository named by the
+ * request (checked as the App), so neither the App nor a reader can be steered to another repository's threads.
+ * Without a discussion id, the page's own discussion is found or created — only for a real IPL page.
+ */
+export async function discussionIdFor(c: AppContext, body: Record<string, unknown>, repo: string, fetcher?: typeof fetch): Promise<string> {
+  const github = gitHubAppFromEnv(c.env, fetcher);
+  const wanted = repo.toLowerCase();
+  let id: string;
+  if (typeof body.discussionId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.discussionId)) {
+    const { node } = await github.graphql<TargetNode>(repoRef(repo), NODE_REPOSITORY, { id: body.discussionId });
+    if (!node?.repository || node.repository.nameWithOwner.toLowerCase() !== wanted) throw new AppError('DISCUSSION_NOT_FOUND', 'This discussion is not part of this page.');
+    if (node.locked) throw new AppError('FORBIDDEN', 'This discussion is locked.');
+    id = body.discussionId;
+  } else {
+    const input = pageInput(body, repo);
+    await assertRealPage(c, input, fetcher);
+    id = (await findOrCreateDiscussion(c.env, input)).id;
+  }
+  if (typeof body.replyToId === 'string') {
+    const { node } = await github.graphql<TargetNode>(repoRef(repo), NODE_REPOSITORY, { id: body.replyToId });
+    if (node?.discussion?.id !== id || node.discussion.repository.nameWithOwner.toLowerCase() !== wanted) throw new AppError('DISCUSSION_NOT_FOUND', 'This comment is not part of this discussion.');
+  }
+  return id;
+}
+
+/** Per-reader write limit (30 per 10 minutes), counted exactly. */
+export async function limitWrites(c: AppContext, who: string): Promise<void> {
+  await takeOrThrow(c.env, `writes:${who}`, 30, 600, 'You are posting too fast. Please wait a few minutes.');
 }
 
 export function writeRoutes(fetcher?: typeof fetch) {
@@ -104,7 +141,7 @@ export function writeRoutes(fetcher?: typeof fetch) {
     if (!markdown) throw new AppError('VALIDATION_FAILED', 'Write something first.', { fields: ['body'] });
     if (markdown.length > MAX_BODY) throw new AppError('PAYLOAD_TOO_LARGE', 'The comment is too long.');
     const replyToId = typeof body.replyToId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.replyToId) ? body.replyToId : undefined;
-    const id = await discussionIdFor(c, body, repo);
+    const id = await discussionIdFor(c, body, repo, fetcher);
 
     if (replyToId) {
       const data = await github.graphql<{ addDiscussionComment: { comment: GReply } }>(repoRef(repo), ADD_REPLY, { input: { discussionId: id, replyToId, body: markdown } }, token);
@@ -121,7 +158,7 @@ export function writeRoutes(fetcher?: typeof fetch) {
     const content = body.content;
     if (typeof content !== 'string' || !(content in REACTIONS)) throw new AppError('VALIDATION_FAILED', 'Unknown reaction.', { fields: ['content'] });
     // No subject yet: the first reaction on a page creates its discussion and reacts to it (#20).
-    const subjectId = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : await discussionIdFor(c, body, repo);
+    const subjectId = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : await discussionIdFor(c, body, repo, fetcher);
     const verb = body.remove === true ? 'remove' : 'add';
     const data = await github.graphql<Record<string, { subject: { reactionGroups: GReactionGroup[] } }>>(
       repoRef(repo),
@@ -139,11 +176,7 @@ export function writeRoutes(fetcher?: typeof fetch) {
   // (pathname term of an existing page on an allowed origin) — at worst one discussion per real page.
   routes.post('/discussions/ensure', async (c) => {
     if (c.req.header('origin') !== new URL(c.req.url).origin) throw new AppError('ORIGIN_NOT_ALLOWED', 'Requests must come from the comment widget.');
-    const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
-    const key = `quota:ensure:${ip}:${new Date().toISOString().slice(0, 13)}`;
-    const used = Number((await c.env.DISCUSS_KV.get(key)) ?? 0);
-    if (used >= ENSURE_PER_HOUR) throw new AppError('RATE_LIMITED', 'Too many requests. Please try again later.', undefined, 3600);
-    await c.env.DISCUSS_KV.put(key, String(used + 1), { expirationTtl: 3600 });
+    await takeOrThrow(c.env, `ensure:${c.req.header('cf-connecting-ip') ?? 'unknown'}`, ENSURE_PER_HOUR, 3600, 'Too many requests. Please try again later.');
     const body = await readJsonObject(c.req.raw, 8 * 1024);
     const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
     const input = pageInput(body, repo);

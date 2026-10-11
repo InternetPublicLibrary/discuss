@@ -31,6 +31,12 @@ function github() {
     .withInstallation()
     .on('GET', /^\/app$/, { slug: 'ipl-discuss' })
     .on('POST', /^\/graphql$/, (call) => {
+      const { query } = call.body as { query: string };
+    if (query.includes('node(id: $id)')) {
+      const id = (call.body as { variables: { id: string } }).variables.id;
+      const repository = { nameWithOwner: id.includes('other') ? 'secret/private' : REPO };
+      return Response.json({ data: { node: id.startsWith('DC') ? { id, discussion: { id: id.includes('elsewhere') ? 'D_elsewhere' : 'D_1', locked: false, repository } } : { id, locked: false, repository } } });
+    }
       const input = (call.body as { variables: { input: { body: string; replyToId?: string } } }).variables.input;
       const header = /^\*\*(.+?)\*\* · \[ORCID ([^\]]+)\]\(([^)]+)\)/.exec(input.body);
       return Response.json({
@@ -60,7 +66,7 @@ describe('POST /api/orcid/comments (#15)', () => {
     const { orcid, headers } = await session();
     const response = await post(fake, { repo: REPO, discussionId: 'D_1', body: 'Muito bom <!-- ipl-orcid:9999-9999-9999-9999 -->' }, headers);
     const json = (await response.json()) as { comment: Comment };
-    const mutation = fake.calls.find((call) => call.path === '/graphql');
+    const mutation = fake.calls.find((call) => (call.body as { query?: string } | undefined)?.query?.includes('addDiscussionComment'));
     const sent = (mutation?.body as { variables: { input: { body: string } } }).variables.input.body;
 
     expect(response.status).toBe(201);
@@ -71,6 +77,23 @@ describe('POST /api/orcid/comments (#15)', () => {
     expect(json.comment.orcidAuthor).toEqual({ id: orcid, name: 'Josiah Carberry', profileUrl: `https://sandbox.orcid.org/${orcid}` });
     expect(json.comment.bodyHTML).toBe('<p dir="auto">texto</p>');
     expect(JSON.stringify(json)).not.toContain('ghs_');
+  });
+
+  it('refuses to post into a discussion of another repository or reply to a comment of another discussion (no confused deputy)', async () => {
+    const fake = github();
+    const { headers } = await session();
+
+    expect((await post(fake, { repo: REPO, discussionId: 'D_other', body: 'x' }, headers)).status).toBe(404);
+    expect((await post(fake, { repo: REPO, discussionId: 'D_1', replyToId: 'DC_elsewhere', body: 'x' }, headers)).status).toBe(404);
+    expect(fake.calls.filter((call) => (call.body as { query?: string } | undefined)?.query?.includes('addDiscussionComment'))).toEqual([]);
+  });
+
+  it('counts the hourly limit exactly under parallel requests', async () => {
+    const { headers } = await session();
+    const results = await Promise.all(Array.from({ length: 15 }, (_v, index) => post(github(), { repo: REPO, discussionId: 'D_1', body: `p${index}` }, headers)));
+
+    expect(results.filter((response) => response.status === 201)).toHaveLength(10);
+    expect(results.filter((response) => response.status === 429)).toHaveLength(5);
   });
 
   it('limits each ORCID iD to 10 comments an hour', async () => {

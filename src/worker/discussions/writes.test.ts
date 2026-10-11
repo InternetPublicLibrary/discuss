@@ -20,9 +20,15 @@ beforeAll(async () => {
 
 const gqlComment = { id: 'DC_new', author: { avatarUrl: 'a', login: 'octocat', url: 'u' }, viewerDidAuthor: true, createdAt: '2026-10-11T00:00:00Z', url: 'u', authorAssociation: 'NONE', lastEditedAt: null, deletedAt: null, isMinimized: false, minimizedReason: null, bodyHTML: '<p>Olá</p>', reactionGroups: [], upvoteCount: 0, viewerHasUpvoted: false, viewerCanUpvote: true, replies: { totalCount: 0, nodes: [] } };
 
-function github() {
-  return new FakeGitHub().withInstallation().on('POST', /^\/graphql$/, (call) => {
+function github(pageStatus = 200) {
+  return new FakeGitHub().withInstallation().on('GET', /^\/pt-BR\//, () => new Response('<html>', { status: pageStatus })).on('POST', /^\/graphql$/, (call) => {
     const { query } = call.body as { query: string };
+    if (query.includes('node(id: $id)')) {
+      const id = (call.body as { variables: { id: string } }).variables.id;
+      const repository = { nameWithOwner: id.includes('other') ? 'secret/private' : REPO };
+      return Response.json({ data: { node: id.startsWith('DC') ? { id, discussion: { id: id.includes('elsewhere') ? 'D_elsewhere' : 'D_page', locked: false, repository } } : { id, locked: false, repository } } });
+    }
+
     if (query.includes('addDiscussionComment')) {
       const input = (call.body as { variables: { input: { replyToId?: string } } }).variables.input;
       return Response.json({ data: { addDiscussionComment: { comment: input.replyToId ? { ...gqlComment, id: 'DC_reply', replyTo: { id: input.replyToId } } : gqlComment } } });
@@ -56,7 +62,7 @@ let unique = 0;
 async function page() {
   const term = `pt-BR/write-${Date.now()}-${unique++}`;
   await env.DISCUSS_KV.put(await mapKey(REPO, 'DIC_c', term), JSON.stringify({ id: 'D_page', number: 3 }));
-  return { repo: REPO, categoryId: 'DIC_c', term, title: 'Página', backLink: 'http://localhost:4000/pt-BR/x/' };
+  return { repo: REPO, categoryId: 'DIC_c', term, title: 'Página', backLink: `http://localhost:4000/${term}/` };
 }
 
 describe('writes by GitHub readers', () => {
@@ -117,13 +123,21 @@ describe('writes by GitHub readers', () => {
     expect(fake.calls.filter((call) => call.path === '/graphql')).toEqual([]);
   });
 
+  it('refuses a discussion id from another repository and invented pages', async () => {
+    const { cookie, csrfToken } = await session();
+    const headers = { cookie, 'x-csrf-token': csrfToken };
+
+    expect((await post(github(), '/api/comments', { repo: REPO, discussionId: 'D_other', body: 'x' }, headers)).status).toBe(404);
+    expect((await post(github(), '/api/comments', { ...(await page()), term: 'invented/thing', body: 'x' }, headers)).status).toBe(403);
+  });
+
   it('refuses repositories outside the allow-list, empty comments and unknown reactions', async () => {
     const { cookie, csrfToken } = await session();
     const headers = { cookie, 'x-csrf-token': csrfToken };
 
     expect((await post(github(), '/api/comments', { repo: 'someone/blog', discussionId: 'D', body: 'x' }, headers)).status).toBe(403);
-    expect((await post(github(), '/api/comments', { repo: REPO, discussionId: 'D', body: '   ' }, headers)).status).toBe(422);
-    expect((await post(github(), '/api/reactions', { repo: REPO, subjectId: 'D', content: 'PARTY' }, headers)).status).toBe(422);
+    expect((await post(github(), '/api/comments', { repo: REPO, discussionId: 'D_page', body: '   ' }, headers)).status).toBe(422);
+    expect((await post(github(), '/api/reactions', { repo: REPO, subjectId: 'D_page', content: 'PARTY' }, headers)).status).toBe(422);
   });
 });
 
@@ -134,7 +148,7 @@ describe('POST /api/discussions/ensure (#16)', () => {
     await env.DISCUSS_KV.put(await mapKey(REPO, 'DIC_c', term), JSON.stringify({ id: 'D_page', number: 3 }));
     return { repo: REPO, categoryId: 'DIC_c', term, title: 'Página', backLink: `http://localhost:4000/${term}/` };
   }
-  const site = (status: number) => github().on('GET', /^\/pt-BR\/ensure-/, new Response('<html>', { status }));
+  const site = (status: number) => github(status);
 
   it('returns the page discussion URL, only for the widget origin', async () => {
     const created = await post(site(200), '/api/discussions/ensure', await realPage(), { 'cf-connecting-ip': `203.0.113.${unique++ % 250}` });

@@ -5,6 +5,7 @@ import { assertWidgetWrite, requireSession } from '../auth/sessions';
 import { assertRepositoryAllowed, loadAllowLists } from '../config';
 import type { Env } from '../env';
 import { AppError, readJsonObject } from '../errors';
+import { takeOrThrow } from '../limits';
 import { type GitHubApp, gitHubAppFromEnv } from '../github/client';
 import { adaptComment, adaptReply, type GComment, type GReply } from './adapt';
 import { REPLY_FIELDS } from './graphql';
@@ -39,10 +40,7 @@ async function assertWithinLimits(c: Context<{ Bindings: Env }>, orcid: string):
   if (await c.env.DISCUSS_KV.get(LOW_BUDGET_KEY)) {
     throw new AppError('GITHUB_RATE_LIMITED', 'Commenting with ORCID is paused for a while. Please try again later.', undefined, 900);
   }
-  const key = `quota:orcid:${orcid}:${new Date().toISOString().slice(0, 13)}`;
-  const used = Number((await c.env.DISCUSS_KV.get(key)) ?? 0);
-  if (used >= ORCID_PER_HOUR) throw new AppError('RATE_LIMITED', `You can post up to ${ORCID_PER_HOUR} comments an hour.`, { limit: 'orcid-hourly' }, 3600);
-  await c.env.DISCUSS_KV.put(key, String(used + 1), { expirationTtl: 3600 });
+  await takeOrThrow(c.env, `orcid:${orcid}`, ORCID_PER_HOUR, 3600, `You can post up to ${ORCID_PER_HOUR} comments an hour.`);
 }
 
 export function orcidRoutes(fetcher?: typeof fetch) {
@@ -60,7 +58,7 @@ export function orcidRoutes(fetcher?: typeof fetch) {
     await assertWithinLimits(c, session.identity.id);
 
     const github: GitHubApp = gitHubAppFromEnv(c.env, fetcher);
-    const discussionId = await discussionIdFor(c, body, repo);
+    const discussionId = await discussionIdFor(c, body, repo, fetcher);
     const replyToId = typeof body.replyToId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.replyToId) ? body.replyToId : undefined;
     const author = { id: session.identity.id, name: session.identity.name, profileUrl: session.identity.profileUrl };
     // As the installation (no reader token): the App is the author on GitHub, the header names the reader.
