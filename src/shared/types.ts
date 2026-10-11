@@ -35,6 +35,8 @@ interface BaseComment {
   minimizedReason: string | null;
   bodyHTML: string;
   reactions: ReactionGroups;
+  /** Set when the IPL App posted this for an ORCID reader (spec 003); then `author` is the bot and is not shown. */
+  orcidAuthor?: { id: string; name: string; profileUrl: string };
 }
 
 export interface Reply extends BaseComment {

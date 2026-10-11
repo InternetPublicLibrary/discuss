@@ -29,6 +29,8 @@ export interface Env {
   SESSION_SECRET?: string;
   /** Session lifetime in days (var; default 30, at most 90). */
   SESSION_TTL_DAYS?: string;
+  /** Exact per-key rate limits (spec 003). */
+  RATE_COUNTER: DurableObjectNamespace<import('./limits').RateCounter>;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret of the App webhook (secret). */

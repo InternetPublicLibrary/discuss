@@ -2,6 +2,7 @@ import type { Reply as ReplyData } from '../../shared/types';
 import type { WidgetConfig } from '../lib/config';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
+import { Author } from './Author';
 import { ReactionButtons } from './ReactionButtons';
 
 export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfig }) {
@@ -13,17 +14,19 @@ export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfi
       <div className="gsc-tl-line" />
       <div className={`flex ${hidden ? 'items-center' : ''}`}>
         <div className="gsc-reply-author-avatar">
-          <a rel="nofollow noopener noreferrer" target="_blank" href={reply.author.url} className="flex items-center">
-            <img className="rounded-full" src={reply.author.avatarUrl} width={30} height={30} alt="" loading="lazy" />
-          </a>
+          {reply.orcidAuthor ? (
+            <span className="rounded-full discuss-orcid-avatar" aria-hidden="true">iD</span>
+          ) : (
+            <a rel="nofollow noopener noreferrer" target="_blank" href={reply.author.url} className="flex items-center">
+              <img className="rounded-full" src={reply.author.avatarUrl} width={30} height={30} alt="" loading="lazy" />
+            </a>
+          )}
         </div>
         <div className="w-full min-w-0 ml-2">
           {!hidden ? (
             <div className="gsc-reply-header">
               <div className="gsc-reply-author">
-                <a rel="nofollow noopener noreferrer" target="_blank" href={reply.author.url} className="flex min-w-0 items-center">
-                  <span className="link-primary overflow-hidden text-ellipsis font-semibold">{reply.author.login}</span>
-                </a>
+                <Author item={reply} avatarClass="hidden" />
                 <a rel="nofollow noopener noreferrer" target="_blank" href={reply.url} className="link-secondary overflow-hidden text-ellipsis">
                   <time className="whitespace-nowrap" title={formatDate(reply.createdAt)} dateTime={reply.createdAt}>
                     {formatDistance(reply.createdAt)}

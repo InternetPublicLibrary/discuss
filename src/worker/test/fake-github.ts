@@ -26,6 +26,7 @@ export class FakeGitHub {
   /** Default App plumbing: installation lookup and installation tokens. */
   withInstallation(id = 42, expiresAt = new Date(Date.now() + 60 * 60 * 1000).toISOString()): this {
     return this.on('GET', /^\/repos\/[^/]+\/[^/]+\/installation$/, { id })
+      .on('GET', /^\/app$/, { slug: 'ipl-discuss' })
       .on('POST', /^\/app\/installations\/\d+\/access_tokens$/, { token: `ghs_installation_${id}`, expires_at: expiresAt });
   }
 

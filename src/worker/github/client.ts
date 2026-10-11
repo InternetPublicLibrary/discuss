@@ -165,6 +165,13 @@ export class GitHubApp {
     return body.data;
   }
 
+  /** Render Markdown as the installation (previews for readers without a GitHub token, e.g. ORCID). */
+  async renderMarkdown(repository: RepositoryRef, text: string): Promise<string> {
+    const response = await this.send('POST', '/markdown', `Bearer ${await this.installationToken(repository)}`, { text, mode: 'gfm', context: `${repository.owner}/${repository.repo}` });
+    if (!response.ok) throw await gitHubError(response, 'render markdown');
+    return response.text();
+  }
+
   /** The App's bot login (`<slug>[bot]`), the author of every discussion and comment the App creates; cached a day. */
   async botLogin(): Promise<string> {
     const cached = await this.options.kv.get('gh:app-bot-login');

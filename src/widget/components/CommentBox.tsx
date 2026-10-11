@@ -47,15 +47,6 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
     </p>
   );
 
-  if (identity.provider !== 'github') {
-    return (
-      <div className="gsc-comment-box">
-        {signedIn}
-        <p className="color-text-secondary text-sm mt-2">{t('orcidCommentingSoon')}</p>
-      </div>
-    );
-  }
-
   const showPreview = async () => {
     setTab('preview');
     setPreview('');
@@ -69,7 +60,8 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
     setBusy(true);
     setError('');
     try {
-      const posted = await post<Posted>('/api/comments', { ...pageFields(config), ...(discussionId ? { discussionId } : {}), ...(replyToId ? { replyToId } : {}), body: text });
+      // ORCID readers post through the IPL App with attribution (spec 003); GitHub readers as themselves.
+      const posted = await post<Posted>(identity.provider === 'orcid' ? '/api/orcid/comments' : '/api/comments', { ...pageFields(config), ...(discussionId ? { discussionId } : {}), ...(replyToId ? { replyToId } : {}), body: text });
       setText('');
       setTab('write');
       onPosted(posted);
@@ -106,6 +98,7 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
           {busy ? t('posting') : replyToId ? t('postReply') : t('postComment')}
         </button>
       </div>
+      {identity.provider === 'orcid' ? <p className="color-text-secondary text-xs mt-1">{t('orcidPostingNote')}</p> : null}
       <p className="color-text-danger text-sm" role="alert">{error}</p>
     </form>
   );
