@@ -1,3 +1,14 @@
+# discuss — Internet Public Library
+
+Comments on [Internet Public Library](https://ipl.better-web.org) pages, stored in GitHub Discussions, with
+sign-in through GitHub or ORCID.
+
+**Status:** fork created 2026-10-10; implementation follows [docs/specs/ROADMAP.md](docs/specs/ROADMAP.md).
+This project is a hard fork of [giscus](https://github.com/giscus/giscus) (MIT) — see [NOTICE.md](NOTICE.md).
+The upstream documentation below describes the original giscus behaviour.
+
+---
+
 # [giscus][giscus]
 
 A comments system powered by [GitHub Discussions][discussions]. Let visitors leave comments and reactions on your website via GitHub! Heavily inspired by [utterances][utterances].
