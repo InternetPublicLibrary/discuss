@@ -7,3 +7,9 @@ the Internet Public Library are released under the same license.
 
 The fork is independent: upstream changes are ported manually when relevant (see
 [ADR 0001](docs/adr/0001-hard-fork-of-giscus.md)).
+
+## Ported upstream fixes
+
+Unmerged fixes from the upstream giscus repository re-implemented here, with credit to their authors:
+`giscus#1651` (category emoji extraction for GitHub's new HTML), `giscus#1712` (progressive-disclosure line image, now
+self-hosted) and `giscus#1641` (invalid CSS selector lists).
