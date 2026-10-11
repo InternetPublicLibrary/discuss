@@ -61,6 +61,7 @@ export function widgetParams(doc: Document, location: Location, data: DOMStringM
   set('reactionsEnabled', data.reactionsEnabled);
   set('emitMetadata', data.emitMetadata);
   set('inputPosition', data.inputPosition);
+  set('input', data.input);
   set('defaultCommentOrder', data.defaultCommentOrder);
   set('description', metaContent(doc, 'discuss:description') || metaContent(doc, 'description', true));
   set('title', metaContent(doc, 'discuss:title') || metaContent(doc, 'title', true) || doc.title.trim());

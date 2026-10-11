@@ -6,6 +6,7 @@ import { postToParent } from '../lib/messages';
 import { Comment } from './Comment';
 import { REACTIONS, type Comment as CommentData, type ReactionGroups } from '../../shared/types';
 import { CommentBox, type Posted } from './CommentBox';
+import { GitHubLink } from './GitHubLink';
 import { ReactionButtons } from './ReactionButtons';
 
 const NO_REACTIONS = Object.fromEntries(Object.keys(REACTIONS).map((key) => [key, { count: 0, viewerHasReacted: false }])) as ReactionGroups;
@@ -53,7 +54,11 @@ export function Discussion({ config }: { config: WidgetConfig }) {
   const discussion = data.page?.discussion;
   const total = (discussion?.totalCommentCount ?? 0) + added.length;
   const locked = discussion?.locked ?? false;
-  const box = locked ? null : <CommentBox config={config} discussionId={discussionId} onPosted={onPosted} />;
+  const box = locked || config.input === 'none'
+    ? null
+    : config.input === 'github'
+      ? <div className="gsc-comment-box"><GitHubLink config={config} url={discussion?.url ?? null} /></div>
+      : <CommentBox config={config} discussionId={discussionId} onPosted={onPosted} />;
 
   return (
     <div className="color-text-primary gsc-main">

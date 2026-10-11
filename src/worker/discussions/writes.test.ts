@@ -126,3 +126,19 @@ describe('writes by GitHub readers', () => {
     expect((await post(github(), '/api/reactions', { repo: REPO, subjectId: 'D', content: 'PARTY' }, headers)).status).toBe(422);
   });
 });
+
+describe('POST /api/discussions/ensure (#16)', () => {
+  it('returns the page discussion URL, only for the widget origin', async () => {
+    const created = await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': `203.0.113.${unique++ % 250}` });
+
+    expect(await created.json()).toEqual({ number: 3, url: `https://github.com/${REPO}/discussions/3` });
+    expect((await post(github(), '/api/discussions/ensure', await page(), { origin: 'https://evil.example' })).status).toBe(403);
+  });
+
+  it('limits anonymous creation per IP', async () => {
+    const ip = `198.51.100.${unique++ % 250}`;
+    for (let index = 0; index < 10; index += 1) await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': ip });
+
+    expect((await post(github(), '/api/discussions/ensure', await page(), { 'cf-connecting-ip': ip })).status).toBe(429);
+  });
+});

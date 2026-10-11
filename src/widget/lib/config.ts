@@ -1,6 +1,8 @@
 /** Widget settings from the iframe URL (set by client.js from the embed's data-* attributes). */
 export type InputPosition = 'top' | 'bottom';
 export type CommentOrder = 'oldest' | 'newest';
+/** `widget`: comment box (default); `github`: a link to comment on GitHub; `none`: read-only (#16). */
+export type InputMode = 'widget' | 'github' | 'none';
 
 export interface WidgetConfig {
   repo: string;
@@ -16,6 +18,7 @@ export interface WidgetConfig {
   reactionsEnabled: boolean;
   emitMetadata: boolean;
   inputPosition: InputPosition;
+  input: InputMode;
   defaultCommentOrder: CommentOrder;
   theme: string;
   lang: string;
@@ -47,6 +50,7 @@ export function readConfig(search: string): WidgetConfig {
     reactionsEnabled: flag(params.get('reactionsEnabled'), true),
     emitMetadata: flag(params.get('emitMetadata'), false),
     inputPosition: params.get('inputPosition') === 'top' ? 'top' : 'bottom',
+    input: params.get('input') === 'github' || params.get('input') === 'none' ? (params.get('input') as InputMode) : 'widget',
     defaultCommentOrder: params.get('defaultCommentOrder') === 'newest' ? 'newest' : 'oldest',
     theme: params.get('theme') ?? 'light',
     lang: params.get('lang') ?? 'en',

@@ -142,3 +142,42 @@ describe('ORCID readers', () => {
     expect(root.querySelector('textarea')).toBeNull();
   });
 });
+
+describe('input modes and permissions (#16)', () => {
+  it('explains GitHub permissions next to the sign-in buttons, linked to the privacy policy', async () => {
+    api((url) => (url === '/api/session' ? Response.json({}, { status: 401 }) : undefined));
+    const root = document.body.appendChild(document.createElement('div'));
+    render(<App config={config()} />, root);
+    await vi.waitFor(() => expect(button(root, 'Sign in with GitHub')).toBeDefined());
+
+    expect(root.textContent).toContain('It cannot see your e-mail or private repositories.');
+    expect(button(root, 'Sign in with GitHub')?.getAttribute('aria-describedby')).toBe('discuss-sign-in-explainer');
+    expect(root.querySelector('a[href$="PRIVACY-POLICY.md"]')).not.toBeNull();
+  });
+
+  it('data-input="none" shows comments read-only: no box, no sign-in, no reaction buttons', async () => {
+    api((url) => (url === '/api/session' ? Response.json(GITHUB) : undefined));
+    const root = document.body.appendChild(document.createElement('div'));
+    render(<App config={readConfig('?repo=o/r&term=pt-BR/x&categoryId=DIC_1&input=none')} />, root);
+    await vi.waitFor(() => expect(root.textContent).toContain('0 comments'));
+
+    expect(root.querySelector('textarea')).toBeNull();
+    expect(button(root, 'Sign in with GitHub')).toBeUndefined();
+    expect(root.querySelector('button[aria-label^="Add"]')).toBeNull();
+  });
+
+  it('data-input="github" creates the discussion when missing and opens it on github.com', async () => {
+    const tab = { opener: {}, location: { href: '' }, close: vi.fn() };
+    vi.spyOn(window, 'open').mockReturnValue(tab as unknown as Window);
+    const spy = api((url) => (url === '/api/session' ? Response.json({}, { status: 401 }) : url === '/api/discussions/ensure' ? Response.json({ number: 4, url: 'https://github.com/o/r/discussions/4' }) : undefined));
+    const root = document.body.appendChild(document.createElement('div'));
+    render(<App config={readConfig('?repo=o/r&term=pt-BR/x&categoryId=DIC_1&input=github')} />, root);
+    await vi.waitFor(() => expect(button(root, 'Comment on GitHub')).toBeDefined());
+    button(root, 'Comment on GitHub')?.click();
+
+    await vi.waitFor(() => expect(tab.location.href).toBe('https://github.com/o/r/discussions/4'));
+    expect(tab.opener).toBeNull();
+    expect(bodyOf(spy, '/api/discussions/ensure')).toMatchObject({ repo: 'o/r', term: 'pt-BR/x', categoryId: 'DIC_1' });
+    expect(root.querySelector('textarea')).toBeNull();
+  });
+});

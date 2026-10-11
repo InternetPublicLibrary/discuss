@@ -1,135 +1,63 @@
-# Privacy Policy
+# Privacy policy — IPL discuss
 
-The [giscus organization][organization] (our organization) is an independent
-organization and is not part of any company. Our organization operates the
-https://giscus.app website (our website). This privacy policy will explain how
-our organization uses your personal data when you use our website.
+IPL discuss shows and stores comments on Internet Public Library pages in GitHub Discussions of the IPL content
+repositories. It is operated by the Internet Public Library maintainers. This page says what the service does with
+your data. (The upstream giscus privacy policy does not apply to this service.)
 
-Topics:
+## Reading comments
 
-- [What data do we collect?](#what-data-do-we-collect)
-- [How do we collect your data?](#how-do-we-collect-your-data)
-- [How will we use your data?](#how-will-we-use-your-data)
-- [How do we store your data?](#how-do-we-store-your-data)
-- [Marketing](#marketing)
-- [What are your data protection rights?](#what-are-your-data-protection-rights)
-- [Cookies](#cookies)
-- [How do we use cookies?](#how-do-we-use-cookies)
-- [What types of cookies do we use?](#what-types-of-cookies-do-we-use)
-- [How to manage cookies](#how-to-manage-cookies)
-- [Privacy policies of other websites](#privacy-policies-of-other-websites)
-- [Changes to our privacy policy](#changes-to-our-privacy-policy)
-- [How to contact us](#how-to-contact-us)
-- [How to contact the appropriate authorities](#how-to-contact-the-appropriate-authorities)
+Reading needs no account. The comments you see come from public GitHub Discussions; the service caches them for a few
+minutes. No cookie is set while you only read.
 
-## What data do we collect?
+## Signing in
 
-We do not collect any data.
+You can sign in to comment with **GitHub** or **ORCID**. Sign-in opens a small window on the provider's site; you can
+cancel at any time.
 
-## How do we collect your data?
+### GitHub
 
-We do not collect any data.
+You authorise the **IPL GitHub App**. GitHub's screen says the app can "act on your behalf"; in practice IPL discuss uses
+that authorisation only to:
 
-## How will we use your data?
+- read your public profile (numeric id, login, name, avatar);
+- post the comments and replies you write, and add or remove the reactions you choose, in IPL discussions;
+- render the preview of a comment.
 
-We do not use your data.
+It cannot read your e-mail address or private repositories and cannot act outside the repositories where the IPL App is
+installed. The App's own permissions on those repositories are **Discussions: read and write** and **Metadata: read**.
+You can revoke the authorisation at any time in GitHub → Settings → Applications. See GitHub's documentation:
+[Authorizing GitHub Apps](https://docs.github.com/apps/using-github-apps/authorizing-github-apps).
 
-## How do we store your data?
+### ORCID
 
-We do not store your data.
+You sign in with ORCID's `/authenticate` scope: the service receives your ORCID iD and your public name, nothing else.
 
-## Marketing
+## What we store, where and for how long
 
-We do not send you any marketing information.
+| Data | Where | How long |
+| --- | --- | --- |
+| Session: provider, id, login (GitHub), display name, profile and avatar URL; for GitHub, your access and refresh tokens **encrypted** | Cloudflare Workers KV | 30 days or until you sign out |
+| Session cookie (`__Host-discuss_session`), HttpOnly, partitioned per site | your browser | same as the session |
+| Sign-in state (single-use, 10 minutes) and sign-in tickets (single-use, 60 seconds) | Workers KV | minutes |
+| Cached public discussions, GitHub App tokens | Workers KV | at most 1 hour |
+| Request logs (request id, route, status, error code) | Cloudflare Workers Logs | Cloudflare's default retention |
 
-## What are your data protection rights?
+Tokens are never sent to your browser or to the IPL page. Comment drafts stay in your browser (the widget's own
+session storage) and are never sent until you post.
 
-Our organization would like to make sure you are fully aware of all of your
-data protection rights. Every user is entitled to the following:
+## What becomes public
 
-**The right to access** – You have the right to request our organization for
-copies of your personal data.
+Comments and reactions are public on GitHub and on the IPL page. Comments posted with GitHub show your GitHub account.
+Comments posted with ORCID (when available) are published by the IPL App and show your name and ORCID iD.
 
-**The right to rectification** – You have the right to request that our
-organization correct any information you believe is inaccurate. You also have
-the right to request our organization to complete the information you believe
-is incomplete.
+## No tracking
 
-**The right to erasure** – You have the right to request that our organization
-erase your personal data, under certain conditions.
+No analytics, advertising or tracking cookies. Cloudflare processes IP addresses to serve and protect the service under
+its own privacy policy; IPL discuss does not store them.
 
-**The right to restrict processing** – You have the right to request that our
-organization restrict the processing of your personal data, under certain
-conditions.
+## Your rights and contact
 
-**The right to object to processing** – You have the right to object to our
-organization's processing of your personal data, under certain conditions.
-
-**The right to data portability** – You have the right to request that our
-organization transfer the data that we have collected to another organization,
-or directly to you, under certain conditions.
-
-However, we are unable to fulfill any of the aforementioned requests for the
-sole reason that we do not collect any data.
-
-If you make a request, we have one month to respond to you. If you would like
-to exercise any of these rights, please contact us at our email:
-[support@giscus.app][email]
-
-## Cookies
-
-Cookies are text files placed on your computer to collect standard Internet log
-information and visitor behavior information. When you visit our website, we do
-not collect any cookies.
-
-However, if you sign in to our website with GitHub, a server-encrypted token
-will be stored in your browser's local storage. On every subsequent load of the
-website, the token will be decrypted by our server to let you create
-authenticated requests to the GitHub API.
-
-For further information, visit https://allaboutcookies.org.
-
-## How do we use cookies?
-
-We do not use cookies, but the server-encrypted token stored in your browser's
-local storage is used to:
-
-*   Keep you signed in
-
-## What types of cookies do we use?
-
-There are a number of different types of cookies, but our website does not use
-any of them.
-
-## How to manage cookies
-
-You can set your browser not to accept cookies, which will not affect your
-experience when you use our website.
-
-## Privacy policies of other websites
-
-Our website contains links to other websites. Our privacy policy applies only
-to our website, so if you click on a link to another website, you should read
-their privacy policy, especially [that of GitHub][github-privacy].
-
-## Changes to our privacy policy
-
-Our organization keeps its privacy policy under regular review and places any
-updates on this web page. This privacy policy was last updated on 26 May 2021.
-
-## How to contact us
-
-If you have any questions about our organization's privacy policy, the data we
-do not hold on you, or you would like to exercise one of your data protection
-rights, please do not hesitate to contact us at our email:
-[support@giscus.app][email]
-
-## How to contact the appropriate authorities
-
-Should you wish to report a complaint or if you feel that our organization has
-not addressed your concern in a satisfactory manner, you may contact your local
-supervisory authority.
-
-[organization]: https://github.com/giscus
-[email]: mailto:support@giscus.app
-[github-privacy]: https://docs.github.com/en/github/site-policy/github-privacy-statement
+To ask about or remove data linked to you, open an issue in
+[InternetPublicLibrary/discuss](https://github.com/InternetPublicLibrary/discuss/issues) or, for sensitive requests, use
+[private vulnerability reporting](https://github.com/InternetPublicLibrary/discuss/security/advisories/new). Comments
+can be edited or deleted on GitHub (GitHub accounts) or through the widget (ORCID, spec 003).

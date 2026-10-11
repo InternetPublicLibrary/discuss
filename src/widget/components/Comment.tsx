@@ -103,7 +103,7 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
             </ol>
           </div>
         ) : null}
-        {identity && !locked && !hidden ? (
+        {identity && !locked && !hidden && config.input === 'widget' ? (
           <div className="gsc-reply-box">
             <CommentBox config={config} discussionId={discussionId} replyToId={comment.id} onPosted={({ reply }) => reply && setPosted((items) => [...items, reply])} />
           </div>

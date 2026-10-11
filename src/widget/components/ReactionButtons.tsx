@@ -31,8 +31,8 @@ export function ReactionButtons({ config, reactions, subjectId, onSubject }: Pro
     if (seen.subjectId !== subjectId && subjectId) setSubject(subjectId);
   }
 
-  if (identity?.provider !== 'github') {
-    const hint = identity ? t('orcidCannotReact') : t('signInToReact');
+  if (identity?.provider !== 'github' || config.input !== 'widget') {
+    const hint = config.input !== 'widget' ? '' : identity ? t('orcidCannotReact') : t('signInToReact');
     return (
       <div className="flex flex-wrap items-center gap-2">
         <ReactionSummary reactions={groups} />

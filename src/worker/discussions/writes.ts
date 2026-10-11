@@ -16,6 +16,7 @@ import { bumpCacheVersion, repoRef } from './read';
  * comments and reactions are authored by the reader. ORCID readers post through the App (spec 003).
  */
 const MAX_BODY = 65_536;
+const ENSURE_PER_HOUR = 10;
 const COMMENT_FIELDS = REPLY_FIELDS.replace(' replyTo { id }', '');
 const ADD_COMMENT = `mutation($input: AddDiscussionCommentInput!) { addDiscussionComment(input: $input) { comment { ${COMMENT_FIELDS} upvoteCount viewerHasUpvoted viewerCanUpvote replies(last: 1) { totalCount nodes { ${REPLY_FIELDS} } } } } }`;
 const ADD_REPLY = `mutation($input: AddDiscussionCommentInput!) { addDiscussionComment(input: $input) { comment { ${REPLY_FIELDS} } } }`;
@@ -105,6 +106,21 @@ export function writeRoutes(fetcher?: typeof fetch) {
     await bumpCacheVersion(c.env.DISCUSS_KV, repo);
     const groups: ReactionGroups = adaptReactionGroups(data[`${verb}Reaction`]?.subject.reactionGroups ?? []);
     return c.json({ subjectId, reactions: groups });
+  });
+
+  // data-input="github" (#16): the page's discussion is created (if needed) so readers can comment on github.com.
+  // Anonymous, so only from the widget itself and at most ENSURE_PER_HOUR times per IP.
+  routes.post('/discussions/ensure', async (c) => {
+    if (c.req.header('origin') !== new URL(c.req.url).origin) throw new AppError('ORIGIN_NOT_ALLOWED', 'Requests must come from the comment widget.');
+    const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+    const key = `quota:ensure:${ip}:${new Date().toISOString().slice(0, 13)}`;
+    const used = Number((await c.env.DISCUSS_KV.get(key)) ?? 0);
+    if (used >= ENSURE_PER_HOUR) throw new AppError('RATE_LIMITED', 'Too many requests. Please try again later.', undefined, 3600);
+    await c.env.DISCUSS_KV.put(key, String(used + 1), { expirationTtl: 3600 });
+    const body = await readJsonObject(c.req.raw, 8 * 1024);
+    const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
+    const found = await findOrCreateDiscussion(c.env, pageInput(body, repo));
+    return c.json({ number: found.number, url: `https://github.com/${repo}/discussions/${found.number}` });
   });
 
   routes.post('/markdown', async (c) => {
