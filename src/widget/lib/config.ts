@@ -19,12 +19,25 @@ export interface WidgetConfig {
   emitMetadata: boolean;
   inputPosition: InputPosition;
   input: InputMode;
+  /** Minimised comments: collapsed with their reason (default) or left out (#18). */
+  hiddenComments: 'collapse' | 'omit';
+  /** Link shown next to the comment box (https only); defaults to the repository's code of conduct. */
+  guidelinesUrl: string;
   defaultCommentOrder: CommentOrder;
   theme: string;
   lang: string;
   /** Origin of the embedding IPL page: the only target of postMessage. */
   parentOrigin: string;
 }
+
+const safeHttps = (value: string | null) => {
+  try {
+    const url = new URL(value ?? '');
+    return url.protocol === 'https:' && !url.username && !url.password ? url.href : '';
+  } catch {
+    return '';
+  }
+};
 
 const flag = (value: string | null, fallback: boolean) => (value === null ? fallback : value === '1' || value === 'true');
 
@@ -51,6 +64,8 @@ export function readConfig(search: string): WidgetConfig {
     emitMetadata: flag(params.get('emitMetadata'), false),
     inputPosition: params.get('inputPosition') === 'top' ? 'top' : 'bottom',
     input: params.get('input') === 'github' || params.get('input') === 'none' ? (params.get('input') as InputMode) : 'widget',
+    hiddenComments: params.get('hiddenComments') === 'omit' ? 'omit' : 'collapse',
+    guidelinesUrl: safeHttps(params.get('guidelinesUrl')) || (params.get('repo') ? `https://github.com/${params.get('repo')}/blob/HEAD/CODE_OF_CONDUCT.md` : ''),
     defaultCommentOrder: params.get('defaultCommentOrder') === 'newest' ? 'newest' : 'oldest',
     theme: params.get('theme') ?? 'light',
     lang: params.get('lang') ?? 'en',

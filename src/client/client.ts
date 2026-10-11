@@ -62,6 +62,8 @@ export function widgetParams(doc: Document, location: Location, data: DOMStringM
   set('emitMetadata', data.emitMetadata);
   set('inputPosition', data.inputPosition);
   set('input', data.input);
+  set('hiddenComments', data.hiddenComments);
+  set('guidelinesUrl', data.guidelinesUrl);
   set('defaultCommentOrder', data.defaultCommentOrder);
   set('description', metaContent(doc, 'discuss:description') || metaContent(doc, 'description', true));
   set('title', metaContent(doc, 'discuss:title') || metaContent(doc, 'title', true) || doc.title.trim());

@@ -65,3 +65,10 @@ Other languages beyond the existing giscus locales.
 GitHub", creating the page's discussion first if needed (anonymous, widget origin only, 10 per hour per IP);
 `data-input="none"` shows comments and reactions read-only, with no sign-in. Next to the sign-in buttons the widget
 explains what GitHub authorisation allows and links GitHub's documentation and the privacy policy.
+
+## Moderation display (issue #18)
+
+`data-hidden-comments="collapse"` (default) shows comments a moderator minimised on GitHub as collapsed, with the
+translated reason (spam, abuse, off-topic, outdated, duplicate, resolved); the body — and an ORCID comment's
+attribution — is rendered only after the reader chooses "Show comment". `omit` leaves them out. `data-guidelines-url`
+(https only) is linked as "Community guidelines" next to the comment box; by default the repository's code of conduct.

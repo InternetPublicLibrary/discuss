@@ -51,6 +51,8 @@ export function Discussion({ config }: { config: WidgetConfig }) {
     );
   }
 
+  // data-hidden-comments="omit": minimised comments are left out entirely (#18).
+  const visible = (comments: CommentData[]) => (config.hiddenComments === 'omit' ? comments.filter((comment) => !comment.isMinimized) : comments);
   const discussion = data.page?.discussion;
   const total = (discussion?.totalCommentCount ?? 0) + added.length;
   const locked = discussion?.locked ?? false;
@@ -119,7 +121,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
         {total === 0 ? <p className="color-text-secondary">{t('noCommentsYet')}</p> : null}
 
         <div className={`gsc-timeline ${total ? '' : 'hidden'}`}>
-          {data.frontComments.map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
+          {visible(data.frontComments).map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
           {data.numHidden > 0 ? (
             <div className="pagination-loader-container gsc-pagination">
               <button type="button" className="gsc-pagination-button color-border-primary" onClick={data.loadMore} disabled={data.isLoadingMore}>
@@ -128,7 +130,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
               </button>
             </div>
           ) : null}
-          {[...data.backComments, ...added].map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
+          {visible([...data.backComments, ...added]).map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
         </div>
 
         {config.inputPosition !== 'top' ? box : null}
