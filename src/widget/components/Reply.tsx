@@ -24,7 +24,8 @@ export function Reply({ reply: initial, config }: { reply: ReplyData; config: Wi
           {reply.orcidAuthor ? (
             <span className="rounded-full discuss-orcid-avatar" aria-hidden="true">iD</span>
           ) : (
-            <a rel="nofollow noopener noreferrer" target="_blank" href={reply.author.url} className="flex items-center">
+            // The author name next to it is the accessible link; the avatar repeats it for pointer users only.
+            <a rel="nofollow noopener noreferrer" target="_blank" href={reply.author.url} className="flex items-center" aria-hidden="true" tabIndex={-1}>
               <img className="rounded-full" src={reply.author.avatarUrl} width={30} height={30} alt="" loading="lazy" />
             </a>
           )}

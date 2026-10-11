@@ -100,6 +100,9 @@ main .gsc-loading-image {
 
 /* IPL palette (IPLibrary-website assets/css/tokens.css, dark). Checked by src/widget/lib/themes.test.ts. */
 main {
+  /* The widget paints its own surface, so text contrast never depends on the host page behind the iframe. */
+  color-scheme: dark;
+  background-color: var(--color-canvas-default);
   --color-fg-default: #e6edf2;
   --color-fg-muted: #aebcc6;
   --color-fg-subtle: #aebcc6;
