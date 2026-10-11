@@ -86,4 +86,15 @@ describe('settings from the IPL page (#12)', () => {
     window.dispatchEvent(new MessageEvent('message', { origin: 'https://ipl.example', source: window.parent, data: { discuss: { setConfig: { theme: 'dark' } } } }));
     await vi.waitFor(() => expect(themeLinks()).toContain('/themes/dark.css'));
   });
+
+  it.each(['pt-BR', 'pt-br', 'pt_BR'])('renders the Brazilian Portuguese UI for lang=%s (#14)', async (lang) => {
+    api(() => Response.json(discussionPage));
+    const root = document.body.appendChild(document.createElement('div'));
+    render(<App config={readConfig(`?repo=o/r&term=x&origin=https://ipl.example/pt-BR/x/&lang=${lang}`)} />, root);
+
+    await vi.waitFor(() => expect(root.textContent).toContain('1 comentário'));
+    expect(root.textContent).toContain('Entrar com o GitHub');
+    render(null, root);
+    root.remove();
+  });
 });
