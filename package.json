@@ -31,7 +31,7 @@
     "@primer/octicons-react": "^19.40.0",
     "dompurify": "^3.4.16",
     "hono": "^4.13.13",
-    "preact": "^10.29.8"
+    "preact": "^11.0.1"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.13.0",
