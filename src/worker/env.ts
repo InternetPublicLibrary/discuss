@@ -17,6 +17,18 @@ export interface Env {
   TRUSTED_DISCUSSION_AUTHORS?: string;
   /** ISO date: TRUSTED_DISCUSSION_AUTHORS count only for discussions created before it; unset = never (var). */
   LEGACY_DISCUSSIONS_BEFORE?: string;
+  /** OAuth credentials of the IPL GitHub App, for readers' user-to-server tokens (secrets). */
+  GITHUB_CLIENT_ID?: string;
+  GITHUB_CLIENT_SECRET?: string;
+  /** ORCID API client for the environment's registry (secrets). */
+  ORCID_CLIENT_ID?: string;
+  ORCID_CLIENT_SECRET?: string;
+  /** "production" uses orcid.org (production Worker only); anything else the sandbox (var). */
+  ORCID_ENVIRONMENT?: string;
+  /** 32+ random characters: seals readers' GitHub tokens in KV (secret). */
+  SESSION_SECRET?: string;
+  /** Session lifetime in days (var; default 30, at most 90). */
+  SESSION_TTL_DAYS?: string;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret of the App webhook (secret). */

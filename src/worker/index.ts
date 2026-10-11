@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { authRoutes } from './auth/routes';
 import { originGuard } from './config';
 import type { Env } from './env';
 import { discussionRoutes, invalidateOnChange } from './discussions/routes';
@@ -18,6 +19,7 @@ app.get('/widget', serveWidget);
 // The widget document exists only at /widget, where its CSP and frame-ancestors are set; never as a bare asset.
 app.get('/', (c) => c.redirect('/widget', 302));
 app.get('/index.html', (c) => c.redirect('/widget', 302));
+app.route('/api', authRoutes());
 app.route('/api', discussionRoutes());
 app.post('/api/webhook', webhookRoute({ discussion: invalidateOnChange, discussion_comment: invalidateOnChange }));
 
