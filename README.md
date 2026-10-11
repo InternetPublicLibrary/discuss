@@ -12,8 +12,8 @@
 
 ---
 
-> **Status:** fork created on 2026-10-10. The code is still upstream giscus (Next.js); the IPL service is being
-> built spec by spec — see the [roadmap](docs/specs/ROADMAP.md).
+> **Status:** fork created on 2026-10-10. The upstream Next.js app has been replaced by a Cloudflare Worker and a
+> Vite widget; the IPL service is built spec by spec — see the [roadmap](docs/specs/ROADMAP.md).
 
 ## How it works
 
@@ -88,8 +88,7 @@ npx playwright install chromium   # once
 npm run test:e2e     # browser tests of the built widget: axe, keyboard, strict-CSP embed, events
 ```
 
-The upstream giscus code (Next.js: `pages/`, `components/`, `lib/`, `services/`) stays in the tree for reference
-while it is ported to `src/` (spec 001); it is not built or deployed.
+The upstream giscus Next.js app was removed once the port reached parity (spec 001 T10); git history keeps it.
 
 ## Related
 
