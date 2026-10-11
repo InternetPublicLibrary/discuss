@@ -125,5 +125,16 @@
   "openingGitHub": "Opening GitHub…",
   "orcidBadge": "ORCID iD {{id}}",
   "orcidPostingNote": "Your comment will be published by the IPL app with your name and ORCID iD.",
-  "iplTeam": "IPL team"
+  "iplTeam": "IPL team",
+  "hiddenBecause": "Hidden by a moderator: {{reason}}.",
+  "hiddenNoReason": "Hidden by a moderator.",
+  "minimized.spam": "spam",
+  "minimized.abuse": "abuse",
+  "minimized.off-topic": "off-topic",
+  "minimized.outdated": "outdated",
+  "minimized.duplicate": "duplicate",
+  "minimized.resolved": "resolved",
+  "showHidden": "Show comment",
+  "hideHidden": "Hide comment",
+  "communityGuidelines": "Community guidelines"
 }

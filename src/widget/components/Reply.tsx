@@ -4,6 +4,7 @@ import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
 import { associationKey } from '../lib/association';
 import { Author } from './Author';
+import { Hidden } from './Hidden';
 import { ReactionButtons } from './ReactionButtons';
 
 export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfig }) {
@@ -42,9 +43,11 @@ export function Reply({ reply, config }: { reply: ReplyData; config: WidgetConfi
               {reply.lastEditedAt ? <span className="color-text-secondary gsc-reply-edited" title={t('lastEditedAt', { date: formatDate(reply.lastEditedAt) })}>{t('edited')}</span> : null}
             </div>
           ) : null}
-          {hidden ? (
+          {reply.isMinimized && !reply.deletedAt ? (
+            <Hidden reason={reply.minimizedReason}>{() => <div dir="auto" dangerouslySetInnerHTML={{ __html: processCommentBody(reply.bodyHTML) }} />}</Hidden>
+          ) : hidden ? (
             <div className="markdown gsc-reply-content not-shown">
-              <em className="color-text-secondary">{reply.deletedAt ? t('thisCommentWasDeleted') : t('thisCommentWasHidden')}</em>
+              <em className="color-text-secondary">{t('thisCommentWasDeleted')}</em>
             </div>
           ) : (
             <div dir="auto" className="markdown gsc-reply-content" dangerouslySetInnerHTML={{ __html: processCommentBody(reply.bodyHTML) }} />

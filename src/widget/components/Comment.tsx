@@ -8,6 +8,7 @@ import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
 import { Author } from './Author';
 import { CommentBox } from './CommentBox';
+import { Hidden } from './Hidden';
 import { ReactionButtons } from './ReactionButtons';
 import { Reply } from './Reply';
 
@@ -62,9 +63,18 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
             {comment.lastEditedAt ? <span className="color-text-secondary gsc-comment-edited" title={t('lastEditedAt', { date: formatDate(comment.lastEditedAt) })}>{t('edited')}</span> : null}
           </div>
         ) : null}
-        {hidden ? (
+        {comment.isMinimized && !comment.deletedAt ? (
+          <Hidden reason={comment.minimizedReason}>
+            {() => (
+              <>
+                {comment.orcidAuthor ? <p className="color-text-secondary text-xs">{comment.orcidAuthor.name} · ORCID {comment.orcidAuthor.id}</p> : null}
+                <div dir="auto" dangerouslySetInnerHTML={{ __html: processCommentBody(comment.bodyHTML) }} />
+              </>
+            )}
+          </Hidden>
+        ) : hidden ? (
           <div className="markdown gsc-comment-content minimized color-bg-tertiary border-color-primary">
-            <em className="color-text-secondary">{comment.deletedAt ? t('thisCommentWasDeleted') : t('thisCommentWasMinimized')}</em>
+            <em className="color-text-secondary">{t('thisCommentWasDeleted')}</em>
           </div>
         ) : (
           <div dir="auto" className="markdown gsc-comment-content" dangerouslySetInnerHTML={{ __html: processCommentBody(comment.bodyHTML) }} />

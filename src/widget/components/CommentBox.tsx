@@ -35,6 +35,11 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
       <div className="gsc-comment-box">
         <p className="color-text-secondary text-sm mb-2">{t('signInToComment')}</p>
         <SignIn />
+        {config.guidelinesUrl ? (
+          <p className="text-xs mt-1">
+            <a href={config.guidelinesUrl} target="_blank" rel="noopener noreferrer" className="link-secondary underline">{t('communityGuidelines')}</a>
+          </p>
+        ) : null}
       </div>
     );
   }
@@ -99,6 +104,11 @@ export function CommentBox({ config, discussionId, replyToId, onPosted }: Props)
         </button>
       </div>
       {identity.provider === 'orcid' ? <p className="color-text-secondary text-xs mt-1">{t('orcidPostingNote')}</p> : null}
+      {config.guidelinesUrl ? (
+        <p className="text-xs mt-1">
+          <a href={config.guidelinesUrl} target="_blank" rel="noopener noreferrer" className="link-secondary underline">{t('communityGuidelines')}</a>
+        </p>
+      ) : null}
       <p className="color-text-danger text-sm" role="alert">{error}</p>
     </form>
   );
