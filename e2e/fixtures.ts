@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Page, Route } from '@playwright/test';
 
 export const GITHUB = { identity: { provider: 'github', id: '1', login: 'octocat', name: 'The Octocat', profileUrl: 'https://github.com/octocat' }, csrfToken: 'csrf' };
 export const ORCID = { identity: { provider: 'orcid', id: '0000-0002-1825-0097', name: 'Josiah Carberry', profileUrl: 'https://orcid.org/0000-0002-1825-0097' }, csrfToken: 'csrf' };
@@ -33,10 +33,13 @@ export const DISCUSSION = {
 const PIXEL = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=', 'base64');
 
 /** Answer the widget's API and avatars locally; `session` is the signed-in identity, or null when signed out. */
-export async function mockApi(page: Page, session: typeof GITHUB | typeof ORCID | null) {
+export async function mockApi(page: Page, session: typeof GITHUB | typeof ORCID | null, options: { health?: number; discussion?: (route: Route) => Promise<void> } = {}) {
   await page.route('https://avatars.githubusercontent.com/**', (route) => route.fulfill({ contentType: 'image/png', body: PIXEL }));
   await page.route('**/api/**', (route) => {
     const { pathname } = new URL(route.request().url());
+    // client.js asks from the host page whether the site is allowed (cross-origin, no credentials).
+    if (pathname === '/api/health') return route.fulfill({ status: options.health ?? 200, headers: { 'access-control-allow-origin': '*' }, json: { service: 'discuss' } });
+    if (pathname.startsWith('/api/discussions') && options.discussion) return options.discussion(route);
     if (pathname === '/api/session') return session ? route.fulfill({ json: session }) : route.fulfill({ status: 401, json: { error: { reason: 'signed-out' } } });
     if (pathname.startsWith('/api/discussions')) return route.fulfill({ json: { ...DISCUSSION, viewer: session ? { login: 'octocat' } : null } });
     if (pathname === '/api/markdown') return route.fulfill({ json: { html: '<p>Preview</p>' } });

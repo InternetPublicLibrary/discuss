@@ -14,7 +14,7 @@ export default tseslint.config(
   },
   js.configs.recommended,
   ...tseslint.configs.strict,
-  { files: ['src/widget/**', 'src/client/**'], languageOptions: { globals: globals.browser } },
+  { files: ['src/widget/**', 'src/client/**', 'e2e/host/**'], languageOptions: { globals: globals.browser } },
   { files: ['scripts/**/*.mjs', 'e2e/**/*.mjs', 'e2e/**/*.ts', 'playwright.config.ts'], languageOptions: { globals: globals.node } },
   {
     files: ['src/**/*.test.{ts,tsx}'],

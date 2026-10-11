@@ -83,7 +83,9 @@ Node.js 22+ and npm.
 ```bash
 npm ci
 npm run dev          # builds the widget, then wrangler dev on http://localhost:8787
-npm run check        # lint + typecheck + tests (API in workerd, widget in happy-dom) + build
+npm run check        # lint + typecheck + tests (API in workerd, widget in jsdom) + build + size budget
+npx playwright install chromium   # once
+npm run test:e2e     # browser tests of the built widget: axe, keyboard, strict-CSP embed, events
 ```
 
 The upstream giscus code (Next.js: `pages/`, `components/`, `lib/`, `services/`) stays in the tree for reference
