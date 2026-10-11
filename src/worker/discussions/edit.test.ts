@@ -39,6 +39,7 @@ function github() {
       DC_theirs: { body: 'x\n\n<!-- ipl-orcid:0000-0001-0000-0000 -->', login: 'ipl-discuss[bot]', repo: REPO },
       DC_human: { body: `x\n\n<!-- ipl-orcid:${ME} -->`, login: 'mallory', repo: REPO },
       DC_other: { body: `x\n\n<!-- ipl-orcid:${ME} -->`, login: 'ipl-discuss[bot]', repo: 'secret/private' },
+      DC_octocat: { body: 'My **own** words', login: 'octocat', repo: REPO },
     };
     const found = bodies[id];
     return Response.json({ data: { node: found ? { body: found.body, author: { login: found.login }, discussion: { repository: { nameWithOwner: found.repo } } } : null } });
@@ -99,3 +100,26 @@ describe('editing and deleting GitHub comments (#19)', () => {
     expect(mutations(fake)).toEqual([]);
   });
 });
+
+describe('the Markdown of the reader’s own comment, for the edit box (review)', () => {
+  const source = (headers: Record<string, string>, id: string) => call(github(), 'GET', `/api/comments/${id}/source?repo=${encodeURIComponent(REPO)}`, headers);
+
+  it('returns an ORCID comment without the generated header and marker', async () => {
+    const response = await source(await session('orcid'), 'DC_mine');
+
+    expect(await response.json()).toEqual({ body: 'old' });
+  });
+
+  it('returns a GitHub reader’s own comment as written', async () => {
+    const response = await source(await session('github'), 'DC_octocat');
+
+    expect(await response.json()).toEqual({ body: 'My **own** words' });
+  });
+
+  it.each(['DC_theirs', 'DC_human', 'DC_other'])('refuses %s', async (id) => {
+    const response = await source(await session('orcid'), id);
+
+    expect([403, 404]).toContain(response.status);
+  });
+});
+

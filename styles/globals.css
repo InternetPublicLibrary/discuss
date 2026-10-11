@@ -230,3 +230,10 @@ a:hover {
 .gsc-comment-box-tab {
   min-height: 1.5rem;
 }
+
+/* The comment a "copy link" URL points at (#19). */
+.discuss-linked {
+  outline: 2px solid var(--color-accent-fg);
+  outline-offset: 2px;
+  border-radius: 6px;
+}

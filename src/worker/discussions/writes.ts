@@ -1,4 +1,5 @@
 import { type Context, Hono } from 'hono';
+import { ORCID_ID, orcidSource } from '../../shared/orcid';
 import { REACTIONS, type Comment, type Reaction, type ReactionGroups, type Reply } from '../../shared/types';
 import { canonicalPathTerm, isValidTerm } from '../../shared/terms';
 import { assertWidgetWrite, githubToken, requireSession } from '../auth/sessions';
@@ -180,6 +181,28 @@ export function writeRoutes(fetcher?: typeof fetch) {
     const data = await github.graphql<{ updateDiscussionComment: { comment: GReply } }>(repoRef(repo), UPDATE, { input: { commentId: id, body: markdown } }, token);
     await bumpCacheVersion(c.env.DISCUSS_KV, repo);
     return c.json({ bodyHTML: data.updateDiscussionComment.comment.bodyHTML, lastEditedAt: data.updateDiscussionComment.comment.lastEditedAt });
+  });
+
+  // The Markdown of the reader's own comment, so the edit box starts from it instead of empty (#19). Only the author
+  // gets it; ORCID comments come back without the App's header and marker.
+  routes.get('/comments/:id/source', async (c) => {
+    const { session } = await requireSession(c);
+    const repo = assertRepositoryAllowed(c.req.query('repo'), loadAllowLists(c.env));
+    const id = commentId(c.req.param('id'));
+    const github = gitHubAppFromEnv(c.env, fetcher);
+    const { node } = await github.graphql<{ node: { body?: string; viewerDidAuthor?: boolean; author?: { login: string } | null; discussion?: { repository: { nameWithOwner: string } } } | null }>(
+      repoRef(repo),
+      `query($id: ID!) { node(id: $id) { ... on DiscussionComment { body viewerDidAuthor author { login } discussion { repository { nameWithOwner } } } } }`,
+      { id },
+    );
+    if (node?.discussion?.repository.nameWithOwner.toLowerCase() !== repo.toLowerCase()) throw new AppError('DISCUSSION_NOT_FOUND', 'This comment is not part of this page.');
+    const body = node.body ?? '';
+    const orcid = session.identity.provider === 'orcid' && ORCID_ID.test(session.identity.id);
+    const mine = orcid
+      ? node.author?.login.toLowerCase() === (await github.botLogin()).toLowerCase() && body.trimEnd().endsWith(`<!-- ipl-orcid:${session.identity.id} -->`)
+      : node.author?.login.toLowerCase() === session.identity.login?.toLowerCase();
+    if (!mine) throw new AppError('FORBIDDEN', 'You can only change your own comments.');
+    return c.json({ body: orcid ? orcidSource(body) : body });
   });
 
   routes.delete('/comments/:id', async (c) => {

@@ -155,5 +155,6 @@
   "save": "Salvar",
   "delete": "Excluir",
   "confirmDelete": "Excluir este comentário?",
-  "report": "Denunciar"
+  "report": "Denunciar",
+  "previewFailed": "Não foi possível carregar a prévia."
 }

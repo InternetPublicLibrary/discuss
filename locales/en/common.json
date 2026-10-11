@@ -146,5 +146,6 @@
   "save": "Save",
   "delete": "Delete",
   "confirmDelete": "Delete this comment?",
-  "report": "Report"
+  "report": "Report",
+  "previewFailed": "The preview could not be loaded."
 }

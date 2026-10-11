@@ -17,8 +17,11 @@ type WidgetMessage =
   | { type: 'discuss:ready' }
   | { type: 'discuss:resize'; height: number }
   | { type: 'discuss:error'; reason: Reason }
-  | { type: 'discuss:metadata'; discussion: unknown };
+  | { type: 'discuss:metadata'; discussion: unknown }
+  | { type: 'discuss:scroll'; top: number };
 
+/** Teardown of the run that owns each container, so a re-run never leaves a second iframe or listener behind. */
+const cleanups = new WeakMap<HTMLElement, () => void>();
 const NOT_ALLOWED_TEXT = 'Comments are not available on this site.';
 
 /** `og:title` first, then `<meta name="title">`, never the other way round (#10). */
@@ -94,7 +97,10 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
   }
   const src = `${discussOrigin}/widget?${params}`;
   if ([...container.querySelectorAll('iframe')].some((frame) => frame.src === src)) return (win as unknown as { discuss: DiscussApi }).discuss;
+  // A previous run (another page, client-side navigation) stops first: its observer, listener and pending load.
+  cleanups.get(container)?.();
   container.replaceChildren();
+  let stopped = false;
 
   let iframe: HTMLIFrameElement | null = null;
   let ready = false;
@@ -116,6 +122,7 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
     const message = (event.data as { discuss?: WidgetMessage } | null)?.discuss;
     if (!message) return;
     if (message.type === 'discuss:resize') iframe.style.height = `${Math.max(0, Math.ceil(message.height))}px`;
+    else if (message.type === 'discuss:scroll') win.scrollTo({ top: iframe.getBoundingClientRect().top + win.scrollY + Math.max(0, message.top) });
     else if (message.type === 'discuss:ready') {
       ready = true;
       // Settings sent before the widget was ready, and the current theme, are delivered now (#12).
@@ -123,6 +130,9 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
       if (theme) pending.push({ theme });
       for (const config of pending) iframe.contentWindow?.postMessage({ discuss: { setConfig: config } }, discussOrigin);
       for (const text of pendingQuotes.splice(0)) iframe.contentWindow?.postMessage({ discuss: { quote: text } }, discussOrigin);
+      // "Copy link" URLs end in #discuss-comment-<id>: the widget reports where that comment is (#19).
+      const linked = /^#(discuss-comment-[A-Za-z0-9_=-]{1,100})$/.exec(win.location.hash)?.[1];
+      if (linked) iframe.contentWindow?.postMessage({ discuss: { scrollTo: linked } }, discussOrigin);
       emit('discuss:ready', {});
     } else if (message.type === 'discuss:error') emit('discuss:error', { reason: message.reason });
     else if (message.type === 'discuss:metadata') emit('discuss:metadata', { discussion: message.discussion });
@@ -141,10 +151,12 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
     // A page the service does not allow would get a blank frame (frame-ancestors); say so clearly instead (#8).
     try {
       const response = await win.fetch(`${discussOrigin}/api/health`, { credentials: 'omit' });
+      if (stopped) return;
       if (response.status === 403) return notAllowed();
     } catch {
       // Network trouble: let the iframe try and report its own error.
     }
+    if (stopped) return;
     iframe = doc.createElement('iframe');
     iframe.className = 'discuss-frame';
     iframe.title = data.lang?.toLowerCase().startsWith('pt') ? 'Comentários' : 'Comments';
@@ -159,10 +171,16 @@ export function boot(script: HTMLScriptElement, win: Window & typeof globalThis 
   };
 
   // Lazy loading that works on every browser: IntersectionObserver one viewport ahead, eager without it (#24).
+  let observer: IntersectionObserver | null = null;
+  cleanups.set(container, () => {
+    stopped = true;
+    observer?.disconnect();
+    win.removeEventListener('message', onMessage);
+  });
   if (data.loading !== 'eager' && 'IntersectionObserver' in win) {
-    const observer = new win.IntersectionObserver((entries) => {
+    observer = new win.IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
-        observer.disconnect();
+        observer?.disconnect();
         void load();
       }
     }, { rootMargin: '100% 0px' });

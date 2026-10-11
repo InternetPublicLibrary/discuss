@@ -8,6 +8,21 @@ import { sendQuote } from './lib/quote';
 import { applyTheme } from './lib/theme';
 
 /** The widget: loads translations and the theme, then the discussion; tells the IPL page it is ready and its height. */
+/** Wait (up to 10 s, while comments load) for the linked comment, highlight it and report its offset. */
+function revealComment(id: string, parentOrigin: string): void {
+  const found = () => {
+    const element = document.getElementById(id);
+    if (!element) return false;
+    element.classList.add('discuss-linked');
+    postToParent({ type: 'discuss:scroll', top: Math.max(0, element.getBoundingClientRect().top + window.scrollY - 8) }, parentOrigin);
+    return true;
+  };
+  if (found()) return;
+  const observer = new MutationObserver(() => found() && observer.disconnect());
+  observer.observe(document.body, { childList: true, subtree: true });
+  setTimeout(() => observer.disconnect(), 10_000);
+}
+
 export function App({ config }: { config: WidgetConfig }) {
   const locale = resolveLocale(config.lang);
   const [messages, setMessages] = useState<{ current: Messages; fallback: Messages } | null>(null);
@@ -22,10 +37,12 @@ export function App({ config }: { config: WidgetConfig }) {
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
       if (!config.parentOrigin || event.origin !== config.parentOrigin || event.source !== window.parent) return;
-      const message = (event.data as { discuss?: { setConfig?: { theme?: unknown }; quote?: unknown } } | null)?.discuss;
+      const message = (event.data as { discuss?: { setConfig?: { theme?: unknown }; quote?: unknown; scrollTo?: unknown } } | null)?.discuss;
       if (typeof message?.setConfig?.theme === 'string') setTheme(message.setConfig.theme);
       // A passage quoted from the IPL page (plain text only, capped) prefills the comment box (#19).
       if (typeof message?.quote === 'string') sendQuote(message.quote.slice(0, 4000));
+      // A "copy link" URL (#discuss-comment-<id>) opened on the IPL page: tell it where that comment is (#19).
+      if (typeof message?.scrollTo === 'string' && /^discuss-comment-[A-Za-z0-9_=-]{1,100}$/.test(message.scrollTo)) revealComment(message.scrollTo, config.parentOrigin);
     };
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);

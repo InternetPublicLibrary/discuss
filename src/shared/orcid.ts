@@ -19,6 +19,14 @@ export function orcidBody(author: OrcidAuthor, markdown: string): string {
   return `${header}\n\n${text}\n\n<!-- ipl-orcid:${author.id} -->`;
 }
 
+/** The reader's own text from an App-posted ORCID body (for editing): header and marker removed, `<!--` restored. */
+export function orcidSource(body: string): string {
+  const withoutMarker = body.replace(/\r\n?/g, '\n').replace(/\n*<!-- ipl-orcid:[^>]* -->\s*$/, '');
+  const start = withoutMarker.indexOf('— via IPL discuss\n\n');
+  const text = start === -1 ? withoutMarker : withoutMarker.slice(start + '— via IPL discuss\n\n'.length);
+  return text.replace(/&lt;!--/g, '<!--');
+}
+
 const HEADER = /^\s*<p[^>]*>\s*<strong>([^<]{1,200})<\/strong>\s*·\s*<a href="https:\/\/(?:sandbox\.)?orcid\.org\/(\d{4}-\d{4}-\d{4}-\d{3}[\dX])"[^>]*>ORCID \2<\/a>\s*—\s*via IPL discuss\s*<\/p>/;
 
 const decode = (html: string) =>

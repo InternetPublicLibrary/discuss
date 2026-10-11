@@ -9,6 +9,7 @@ export interface DiscussionState {
   isLoading: boolean;
   isLoadingMore: boolean;
   error: ApiError | null;
+  moreError: ApiError | null;
   page: DiscussionPage | null;
   /** Comments shown above the "load more" control, then below it. */
   frontComments: Comment[];
@@ -35,6 +36,8 @@ export function useDiscussion(config: WidgetConfig, order: CommentOrder): Discus
   const [back, setBack] = useState<DiscussionPage | null>(null);
   const [front, setFront] = useState<DiscussionPage[]>([]);
   const [error, setError] = useState<ApiError | null>(null);
+  // A failed "load more" keeps what is on screen and offers a retry, instead of replacing it with an error.
+  const [moreError, setMoreError] = useState<ApiError | null>(null);
   const [isLoading, setLoading] = useState(true);
   const [isLoadingMore, setLoadingMore] = useState(false);
   const [version, setVersion] = useState(0);
@@ -61,9 +64,10 @@ export function useDiscussion(config: WidgetConfig, order: CommentOrder): Discus
     const last = front.at(-1);
     if (!last?.discussion.pageInfo.hasNextPage || isLoadingMore) return;
     setLoadingMore(true);
+    setMoreError(null);
     getJson<DiscussionPage>(query(config, { first: PAGE, after: last.discussion.pageInfo.endCursor ?? '' }))
       .then((page) => setFront((pages) => [...pages, page]))
-      .catch((caught: unknown) => setError(caught instanceof ApiError ? caught : new ApiError(0, 'internal', String(caught))))
+      .catch((caught: unknown) => setMoreError(caught instanceof ApiError ? caught : new ApiError(0, 'internal', String(caught))))
       .finally(() => setLoadingMore(false));
   }, [config, front, isLoadingMore]);
 
@@ -77,5 +81,5 @@ export function useDiscussion(config: WidgetConfig, order: CommentOrder): Discus
     ? { frontComments: backComments.slice().reverse(), backComments: frontComments.slice().reverse() }
     : { frontComments, backComments };
 
-  return { isLoading, isLoadingMore, error, page: back, ...ordered, numHidden, loadMore, reload: () => setVersion((value) => value + 1) };
+  return { isLoading, isLoadingMore, error, moreError, page: back, ...ordered, numHidden, loadMore, reload: () => setVersion((value) => value + 1) };
 }

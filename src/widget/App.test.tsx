@@ -47,7 +47,7 @@ describe('App', () => {
 
     expect(root.querySelector('img[onerror]')).toBeNull();
     expect(root.querySelector('.markdown a')?.getAttribute('rel')).toBe('noopener noreferrer nofollow ugc');
-    expect(root.querySelector('.markdown a')?.getAttribute('target')).toBe('_top');
+    expect(root.querySelector('.markdown a')?.getAttribute('target')).toBe('_blank');
   });
 
   it('shows a translated message for an error reason', async () => {
