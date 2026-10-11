@@ -58,3 +58,10 @@ Other languages beyond the existing giscus locales.
   reads or stores sessions.
 - Strict CSP on the IPL site: `script-src` and `frame-src` must allow the discuss origin; `connect-src` must allow it
   for the allow-list check. No `unsafe-*` source is needed.
+
+## Input modes (issue #16)
+
+`data-input="widget"` (default) shows the comment box and sign-in; `data-input="github"` replaces it with "Comment on
+GitHub", creating the page's discussion first if needed (anonymous, widget origin only, 10 per hour per IP);
+`data-input="none"` shows comments and reactions read-only, with no sign-in. Next to the sign-in buttons the widget
+explains what GitHub authorisation allows and links GitHub's documentation and the privacy policy.

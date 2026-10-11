@@ -119,5 +119,9 @@
   "postComment": "Comment",
   "postReply": "Reply",
   "posting": "Posting…",
-  "postingFailed": "Your comment could not be posted. Please try again."
+  "postingFailed": "Your comment could not be posted. Please try again.",
+  "signInExplainer": "Signing in with GitHub lets IPL discuss read your public profile and post the comments and reactions you choose, as you. It cannot see your e-mail or private repositories. <docs>How GitHub app authorisation works</docs> · <privacy>Privacy</privacy>",
+  "orcidExplainer": "ORCID sign-in shares only your ORCID iD and public name.",
+  "commentOnGitHub": "Comment on GitHub",
+  "openingGitHub": "Opening GitHub…"
 }
