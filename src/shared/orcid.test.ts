@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { orcidBody, parseOrcidHeader } from './orcid';
+import { orcidBody, orcidSource, parseOrcidHeader } from './orcid';
 
 const author = { id: '0000-0002-1825-0097', name: 'Josiah *Carberry*', profileUrl: 'https://orcid.org/0000-0002-1825-0097' };
 
@@ -38,5 +38,30 @@ describe('parseOrcidHeader', () => {
 
   it('decodes the escaped name', () => {
     expect(parseOrcidHeader(rendered.replace('Josiah Carberry', 'A &amp; B'))?.author.name).toBe('A & B');
+  });
+});
+
+describe('mentions in App-posted ORCID comments (review)', () => {
+  it('never @mentions people or teams, in the name or the text', () => {
+    const body = orcidBody({ id: '0000-0002-1825-0097', name: '@org/team', profileUrl: 'https://orcid.org/0000-0002-1825-0097' }, 'cc @someone');
+
+    expect(body).not.toMatch(/@[\w-]/);
+  });
+
+  it.each(['@someone', '\\@someone', '&#64;someone', '&#x40;someone', '&commat;someone', '@org/team', '#12', '\\#12', '&#35;12', 'o/r#12', 'GH-12'])(
+    'neutralises %s, which GitHub would render as a mention or reference',
+    (written) => {
+      const body = orcidBody({ id: '0000-0002-1825-0097', name: 'J', profileUrl: 'https://orcid.org/0000-0002-1825-0097' }, `see ${written}`);
+      const text = body.split('\n\n')[1] ?? '';
+
+      expect(text).toContain('\u2060');
+      expect(text.replace(/\u2060/g, '')).toBe(`see ${written}`);
+    },
+  );
+
+  it('gives the reader their text back without the joiners when editing', () => {
+    const body = orcidBody({ id: '0000-0002-1825-0097', name: 'J', profileUrl: 'https://orcid.org/0000-0002-1825-0097' }, 'cc @someone <!-- x -->');
+
+    expect(orcidSource(body)).toBe('cc @someone <!-- x -->');
   });
 });

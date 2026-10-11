@@ -66,13 +66,23 @@ export function githubProvider({ clientId, clientSecret, fetch: fetcher }: Provi
 }
 
 /** Exchange a refresh token for a new user token (8-hour tokens); null when GitHub refuses. */
-export async function refreshGitHubToken(deps: ProviderDeps, refreshToken: string): Promise<GitHubTokens | null> {
-  if (!deps.clientId || !deps.clientSecret) return null;
-  const response = await deps.fetch('https://github.com/login/oauth/access_token', {
-    method: 'POST',
-    headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ client_id: deps.clientId, client_secret: deps.clientSecret, grant_type: 'refresh_token', refresh_token: refreshToken }),
-  });
-  if (!response.ok) return null;
-  return tokensFrom((await response.json().catch(() => ({}))) as TokenResponse);
+/**
+ * Renew a user token. `refused` means GitHub rejected the refresh token (it is single use, expired or revoked);
+ * `unavailable` is a network error or a GitHub 5xx, after which the session must survive.
+ */
+export async function refreshGitHubToken(deps: ProviderDeps, refreshToken: string): Promise<GitHubTokens | 'refused' | 'unavailable'> {
+  if (!deps.clientId || !deps.clientSecret) return 'refused';
+  let response: Response;
+  try {
+    response = await deps.fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST',
+      headers: { accept: 'application/json', 'content-type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ client_id: deps.clientId, client_secret: deps.clientSecret, grant_type: 'refresh_token', refresh_token: refreshToken }),
+    });
+  } catch {
+    return 'unavailable';
+  }
+  if (response.status >= 500 || response.status === 429) return 'unavailable';
+  if (!response.ok) return 'refused';
+  return tokensFrom((await response.json().catch(() => ({}))) as TokenResponse) ?? 'refused';
 }

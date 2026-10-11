@@ -101,6 +101,33 @@ describe('GET /api/discussions', () => {
     expect(await response.json()).toMatchObject({ error: { reason } });
   });
 
+  it('remembers a page without a discussion briefly, so repeats cost no GitHub call (review)', async () => {
+    const { fake, request } = setup(null);
+    const path = termPath();
+    await request(path);
+    const calls = graphqlCalls(fake);
+
+    expect((await request(path)).status).toBe(404);
+    expect(graphqlCalls(fake)).toBe(calls);
+  });
+
+  it('limits uncached reads per client (review)', async () => {
+    const { request } = setup(null);
+    const headers = { 'cf-connecting-ip': '203.0.113.9' };
+    const statuses: number[] = [];
+    for (let index = 0; index < 121; index += 1) statuses.push((await request(termPath(), { headers })).status);
+
+    expect(statuses.slice(0, 120).every((status) => status === 404)).toBe(true);
+    expect(statuses[120]).toBe(429);
+  });
+
+  it('refuses over-long terms and cursors without calling GitHub (review)', async () => {
+    const { fake, request } = setup();
+
+    expect((await request(`/api/discussions?repo=${encodeURIComponent(REPO)}&term=${'a'.repeat(501)}`)).status).toBe(400);
+    expect(graphqlCalls(fake)).toBe(0);
+  });
+
   it('refuses repositories outside the allow-list', async () => {
     const { request, fake } = setup();
     const response = await request('/api/discussions?repo=someone/blog&term=x');

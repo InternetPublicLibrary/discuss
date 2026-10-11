@@ -144,6 +144,13 @@ export async function discussionIdFor(c: AppContext, body: Record<string, unknow
   return id;
 }
 
+/** A reaction subject must be a discussion or discussion comment of the allowed repository, checked as the App. */
+async function assertReactionSubject(github: ReturnType<typeof gitHubAppFromEnv>, repo: string, id: string): Promise<void> {
+  const { node } = await github.graphql<TargetNode>(repoRef(repo), NODE_REPOSITORY, { id });
+  const owner = node?.repository?.nameWithOwner ?? node?.discussion?.repository.nameWithOwner;
+  if (owner?.toLowerCase() !== repo.toLowerCase()) throw new AppError('DISCUSSION_NOT_FOUND', 'This comment is not part of this page.');
+}
+
 /** Per-reader write limit (30 per 10 minutes), counted exactly. */
 export async function limitWrites(c: AppContext, who: string): Promise<void> {
   await takeOrThrow(c.env, `writes:${who}`, 30, 600, 'You are posting too fast. Please wait a few minutes.');
@@ -219,7 +226,9 @@ export function writeRoutes(fetcher?: typeof fetch) {
     const content = body.content;
     if (typeof content !== 'string' || !(content in REACTIONS)) throw new AppError('VALIDATION_FAILED', 'Unknown reaction.', { fields: ['content'] });
     // No subject yet: the first reaction on a page creates its discussion and reacts to it (#20).
-    const subjectId = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : await discussionIdFor(c, body, repo, fetcher);
+    const given = typeof body.subjectId === 'string' && /^[A-Za-z0-9_=-]{1,100}$/.test(body.subjectId) ? body.subjectId : null;
+    if (given) await assertReactionSubject(github, repo, given);
+    const subjectId = given ?? (await discussionIdFor(c, body, repo, fetcher));
     const verb = body.remove === true ? 'remove' : 'add';
     const data = await github.graphql<Record<string, { subject: { reactionGroups: GReactionGroup[] } }>>(
       repoRef(repo),
@@ -251,6 +260,8 @@ export function writeRoutes(fetcher?: typeof fetch) {
     assertWidgetWrite(c, found.session);
     const body = await readJsonObject(c.req.raw, MAX_BODY + 8 * 1024);
     const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
+    // Previews cost a GitHub call each (as the App for ORCID readers): 60 per 10 minutes per reader.
+    await takeOrThrow(c.env, `preview:${found.session.identity.provider}:${found.session.identity.id}`, 60, 600, 'Too many previews. Please wait a few minutes.');
     const markdown = typeof body.text === 'string' ? body.text : '';
     if (markdown.length > MAX_BODY) throw new AppError('PAYLOAD_TOO_LARGE', 'The comment is too long.');
     // ORCID readers have no GitHub token: their preview is rendered as the App.

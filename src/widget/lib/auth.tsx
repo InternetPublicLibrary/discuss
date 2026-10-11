@@ -19,7 +19,7 @@ export interface Identity {
 interface AuthState {
   identity: Identity | null;
   csrfToken: string;
-  error: 'popupBlocked' | 'signInFailed' | null;
+  error: 'popupBlocked' | 'signInFailed' | 'signOutFailed' | null;
   signIn: (provider: 'github' | 'orcid') => void;
   signOut: () => Promise<void>;
   /** POST JSON to the API as the signed-in reader (CSRF token included). */
@@ -98,9 +98,15 @@ export function AuthProvider({ children }: { children: ComponentChildren }) {
   );
   const post = useCallback(<T,>(path: string, body: unknown) => send<T>('POST', path, body), [send]);
 
+  // The widget shows "signed out" only when the server session is really gone (204, or already 401).
   const signOut = useCallback(async () => {
-    await getJson('/api/session/logout', { method: 'POST', headers: { 'x-csrf-token': session?.csrfToken ?? '' } }).catch(() => undefined);
-    setSession(null);
+    try {
+      await getJson('/api/session/logout', { method: 'POST', headers: { 'x-csrf-token': session?.csrfToken ?? '' } });
+      setSession(null);
+    } catch (caught) {
+      if (caught instanceof ApiError && caught.status === 401) setSession(null);
+      else setError('signOutFailed');
+    }
   }, [session]);
 
   return (

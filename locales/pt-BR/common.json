@@ -156,5 +156,6 @@
   "delete": "Excluir",
   "confirmDelete": "Excluir este comentário?",
   "report": "Denunciar",
-  "previewFailed": "Não foi possível carregar a prévia."
+  "previewFailed": "Não foi possível carregar a prévia.",
+  "signOutFailed": "Não foi possível sair. Tente novamente."
 }

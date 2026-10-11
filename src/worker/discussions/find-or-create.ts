@@ -7,6 +7,7 @@ import { AppError } from '../errors';
 import { type GitHubApp, gitHubAppFromEnv } from '../github/client';
 import { repositoryCategories, resolveCategory } from './categories';
 import { repoRef, searchPhrase } from './read';
+import { neutralizeGitHubText } from '../text';
 
 /**
  * Exactly one discussion per page (issue #10). Upstream decided on page load and looked discussions up with GitHub
@@ -64,8 +65,13 @@ export function isTrustedDiscussion(node: { author?: { login: string } | null; c
   return trust.legacyAuthors.includes(login) && trust.legacyCutoff !== null && Number.isFinite(created) && created < trust.legacyCutoff;
 }
 
-/** Plain text for the discussion body: no HTML or Markdown structure from page metadata, one paragraph, capped. */
-const plain = (value: string, max: number) => value.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
+/**
+ * Plain text for the bot-authored discussion: page metadata comes from the client, so it gets no HTML, no Markdown
+ * links or emphasis, no entities (`&#64;` would render as `@`), and no live @mentions, #references or URLs; one
+ * paragraph, capped.
+ */
+const plain = (value: string, max: number) =>
+  neutralizeGitHubText(value.replace(/[<>]/g, '').replace(/&/g, '&amp;').replace(/[\\`*_[\]()!|~]/g, '\\$&').replace(/\s+/g, ' ').trim()).slice(0, max);
 
 export function discussionBody(input: FindOrCreateInput, termHash: string, allowedOrigins: { origins: string[]; patterns: RegExp[]; repositories: string[] }): string {
   // Only a link to an allowed IPL page goes into the body; anything else is left out.
@@ -79,7 +85,7 @@ export function discussionBody(input: FindOrCreateInput, termHash: string, allow
   return [
     plain(input.description ?? '', 500),
     page,
-    `<!-- discuss-term: ${input.term.replace(/-->/g, '')} -->`,
+    `<!-- discuss-term: ${input.term.replace(/-{2,}|>/g, ' ')} -->`,
     `<!-- sha1: ${termHash} -->`,
   ]
     .filter(Boolean)
@@ -119,14 +125,26 @@ export async function findOrCreateUnlocked(github: GitHubApp, kv: KVNamespace, i
   return { ...discussion, created: true };
 }
 
-/** One instance per mapping key: `blockConcurrencyWhile` lets exactly one find-or-create run at a time. */
+/** What crosses the Durable Object boundary: RPC keeps only an Error's name and message, so AppError travels as data. */
+type LockResult = { ok: true; found: FoundDiscussion } | { ok: false; code: AppError['code']; message: string; details?: Record<string, unknown>; retryAfter?: number };
+
+/**
+ * One instance per mapping key: `blockConcurrencyWhile` lets exactly one find-or-create run at a time. The callback
+ * never throws (a throw would reset the object); errors come back as a result and are rebuilt by the caller.
+ */
 export class DiscussionLock extends DurableObject<Env> {
-  async findOrCreate(input: FindOrCreateInput): Promise<FoundDiscussion> {
-    let result: FoundDiscussion | undefined;
+  async findOrCreate(input: FindOrCreateInput): Promise<LockResult> {
+    let result: LockResult = { ok: false, code: 'INTERNAL', message: 'Discussion lookup did not complete.' };
     await this.ctx.blockConcurrencyWhile(async () => {
-      result = await findOrCreateUnlocked(gitHubAppFromEnv(this.env), this.env.DISCUSS_KV, input, this.env);
+      try {
+        result = { ok: true, found: await findOrCreateUnlocked(gitHubAppFromEnv(this.env), this.env.DISCUSS_KV, input, this.env) };
+      } catch (caught) {
+        result = caught instanceof AppError
+          ? { ok: false, code: caught.code, message: caught.message, ...(caught.details ? { details: caught.details } : {}), ...(caught.retryAfter ? { retryAfter: caught.retryAfter } : {}) }
+          : { ok: false, code: 'INTERNAL', message: 'Discussion lookup failed.' };
+        if (!(caught instanceof AppError)) console.error(JSON.stringify({ level: 'error', where: 'DiscussionLock', error: String(caught) }));
+      }
     });
-    if (!result) throw new AppError('INTERNAL', 'Discussion lookup did not complete.');
     return result;
   }
 }
@@ -136,6 +154,8 @@ export async function findOrCreateDiscussion(env: Env, input: FindOrCreateInput)
   const key = await mapKey(input.repo, input.categoryId, input.term);
   const known = await env.DISCUSS_KV.get<{ id: string; number: number }>(key, 'json');
   if (known) return { ...known, created: false };
-  return env.DISCUSSION_LOCK.get(env.DISCUSSION_LOCK.idFromName(key)).findOrCreate(input);
+  const result = (await env.DISCUSSION_LOCK.get(env.DISCUSSION_LOCK.idFromName(key)).findOrCreate(input)) as LockResult;
+  if (!result.ok) throw new AppError(result.code, result.message, result.details, result.retryAfter);
+  return result.found;
 }
 
