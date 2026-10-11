@@ -24,6 +24,8 @@ interface AuthState {
   signOut: () => Promise<void>;
   /** POST JSON to the API as the signed-in reader (CSRF token included). */
   post: <T>(path: string, body: unknown) => Promise<T>;
+  /** Any method (PATCH, DELETE) as the signed-in reader. */
+  send: <T>(method: string, path: string, body?: unknown) => Promise<T>;
   /** The session ended on the server (e.g. expired): show the signed-out state. */
   signedOut: () => void;
 }
@@ -35,6 +37,9 @@ const AuthContext = createContext<AuthState>({
   signIn: () => undefined,
   signOut: async () => undefined,
   post: async () => {
+    throw new ApiError(401, 'signed-out', 'Not signed in');
+  },
+  send: async () => {
     throw new ApiError(401, 'signed-out', 'Not signed in');
   },
   signedOut: () => undefined,
@@ -79,14 +84,19 @@ export function AuthProvider({ children }: { children: ComponentChildren }) {
     window.addEventListener('message', onMessage);
   }, []);
 
-  const post = useCallback(
-    <T,>(path: string, body: unknown) =>
-      getJson<T>(path, { method: 'POST', headers: { 'content-type': 'application/json', 'x-csrf-token': session?.csrfToken ?? '' }, body: JSON.stringify(body) }).catch((caught: unknown) => {
+  const send = useCallback(
+    <T,>(method: string, path: string, body?: unknown) =>
+      getJson<T>(path, {
+        method,
+        headers: { 'x-csrf-token': session?.csrfToken ?? '', ...(body === undefined ? {} : { 'content-type': 'application/json' }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      }).catch((caught: unknown) => {
         if (caught instanceof ApiError && caught.reason === 'signed-out') setSession(null);
         throw caught;
       }),
     [session],
   );
+  const post = useCallback(<T,>(path: string, body: unknown) => send<T>('POST', path, body), [send]);
 
   const signOut = useCallback(async () => {
     await getJson('/api/session/logout', { method: 'POST', headers: { 'x-csrf-token': session?.csrfToken ?? '' } }).catch(() => undefined);
@@ -94,7 +104,7 @@ export function AuthProvider({ children }: { children: ComponentChildren }) {
   }, [session]);
 
   return (
-    <AuthContext.Provider value={{ identity: session?.identity ?? null, csrfToken: session?.csrfToken ?? '', error, signIn, signOut, post, signedOut: () => setSession(null) }}>
+    <AuthContext.Provider value={{ identity: session?.identity ?? null, csrfToken: session?.csrfToken ?? '', error, signIn, signOut, post, send, signedOut: () => setSession(null) }}>
       {children}
     </AuthContext.Provider>
   );

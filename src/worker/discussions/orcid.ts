@@ -10,7 +10,7 @@ import { type GitHubApp, gitHubAppFromEnv } from '../github/client';
 import { adaptComment, adaptReply, type GComment, type GReply } from './adapt';
 import { REPLY_FIELDS } from './graphql';
 import { bumpCacheVersion, repoRef } from './read';
-import { discussionIdFor } from './writes';
+import { commentId, DELETE_COMMENT, discussionIdFor, UPDATE } from './writes';
 
 /** Comments by ORCID readers, posted by the IPL App with visible attribution (spec 003 T1, #15). */
 export const ORCID_PER_HOUR = 10;
@@ -69,6 +69,50 @@ export function orcidRoutes(fetcher?: typeof fetch) {
     const bot = await github.botLogin();
     const created = data.addDiscussionComment.comment;
     return c.json(replyToId ? { discussionId, reply: markOrcid(adaptReply(created), bot) } : { discussionId, comment: markOrcid(adaptComment(created), bot) }, 201);
+  });
+
+  /**
+   * Edit or delete an ORCID comment (#19). The App is the author on GitHub, so ownership is checked here: the comment
+   * must be the bot's, in the allowed repository, and carry the marker of the signed-in iD.
+   */
+  async function ownComment(c: Context<{ Bindings: Env }>, repoValue: unknown) {
+    const { session } = await requireSession(c);
+    assertWidgetWrite(c, session);
+    if (session.identity.provider !== 'orcid' || !ORCID_ID.test(session.identity.id)) throw new AppError('UNAUTHENTICATED', 'Sign in with ORCID to do this.');
+    const repo = assertRepositoryAllowed(repoValue, loadAllowLists(c.env));
+    const id = commentId(c.req.param('id') ?? '');
+    const github = gitHubAppFromEnv(c.env, fetcher);
+    const { node } = await github.graphql<{ node: { body?: string; author?: { login: string } | null; discussion?: { repository: { nameWithOwner: string } } } | null }>(
+      repoRef(repo),
+      `query($id: ID!) { node(id: $id) { ... on DiscussionComment { body author { login } discussion { repository { nameWithOwner } } } } }`,
+      { id },
+    );
+    const mine =
+      node?.discussion?.repository.nameWithOwner.toLowerCase() === repo.toLowerCase() &&
+      node.author?.login.toLowerCase() === (await github.botLogin()).toLowerCase() &&
+      (node.body ?? '').trimEnd().endsWith(`<!-- ipl-orcid:${session.identity.id} -->`);
+    if (!mine) throw new AppError('FORBIDDEN', 'You can only change your own comments.');
+    return { session, repo, id, github };
+  }
+
+  routes.patch('/orcid/comments/:id', async (c) => {
+    const body = await readJsonObject(c.req.raw, ORCID_MAX_LENGTH + 8 * 1024);
+    const { session, repo, id, github } = await ownComment(c, body.repo);
+    const markdown = typeof body.body === 'string' ? body.body.trim() : '';
+    if (!markdown) throw new AppError('VALIDATION_FAILED', 'Write something first.', { fields: ['body'] });
+    if (markdown.length > ORCID_MAX_LENGTH) throw new AppError('PAYLOAD_TOO_LARGE', `Comments can have up to ${ORCID_MAX_LENGTH} characters.`);
+    const author = { id: session.identity.id, name: session.identity.name, profileUrl: session.identity.profileUrl };
+    const data = await github.graphql<{ updateDiscussionComment: { comment: { bodyHTML: string; lastEditedAt: string | null } } }>(repoRef(repo), UPDATE, { input: { commentId: id, body: orcidBody(author, markdown) } });
+    await bumpCacheVersion(c.env.DISCUSS_KV, repo);
+    const parsed = parseOrcidHeader(data.updateDiscussionComment.comment.bodyHTML);
+    return c.json({ bodyHTML: parsed?.bodyHTML ?? '', lastEditedAt: data.updateDiscussionComment.comment.lastEditedAt });
+  });
+
+  routes.delete('/orcid/comments/:id', async (c) => {
+    const { repo, id, github } = await ownComment(c, c.req.query('repo'));
+    await github.graphql(repoRef(repo), DELETE_COMMENT, { input: { id } });
+    await bumpCacheVersion(c.env.DISCUSS_KV, repo);
+    return c.body(null, 204);
   });
 
   return routes;

@@ -17,6 +17,21 @@ import { bumpCacheVersion, repoRef } from './read';
  * comments and reactions are authored by the reader. ORCID readers post through the App (spec 003).
  */
 const MAX_BODY = 65_536;
+export const UPDATE = `mutation($input: UpdateDiscussionCommentInput!) { updateDiscussionComment(input: $input) { comment { bodyHTML lastEditedAt } } }`;
+export const DELETE_COMMENT = `mutation($input: DeleteDiscussionCommentInput!) { deleteDiscussionComment(input: $input) { comment { id } } }`;
+
+export const commentId = (value: string) => {
+  if (!/^[A-Za-z0-9_=-]{1,100}$/.test(value)) throw new AppError('BAD_REQUEST', 'Invalid comment id.');
+  return value;
+};
+
+const COMMENT_REPOSITORY = `query($id: ID!) { node(id: $id) { ... on DiscussionComment { discussion { repository { nameWithOwner } } } } }`;
+
+/** The comment must belong to the allowed repository named by the request. */
+export async function assertCommentInRepository(github: ReturnType<typeof gitHubAppFromEnv>, repo: string, id: string): Promise<void> {
+  const { node } = await github.graphql<{ node: { discussion?: { repository: { nameWithOwner: string } } } | null }>(repoRef(repo), COMMENT_REPOSITORY, { id });
+  if (node?.discussion?.repository.nameWithOwner.toLowerCase() !== repo.toLowerCase()) throw new AppError('DISCUSSION_NOT_FOUND', 'This comment is not part of this page.');
+}
 const ENSURE_PER_HOUR = 10;
 const COMMENT_FIELDS = REPLY_FIELDS.replace(' replyTo { id }', '');
 const ADD_COMMENT = `mutation($input: AddDiscussionCommentInput!) { addDiscussionComment(input: $input) { comment { ${COMMENT_FIELDS} upvoteCount viewerHasUpvoted viewerCanUpvote replies(last: 1) { totalCount nodes { ${REPLY_FIELDS} } } } } }`;
@@ -86,7 +101,8 @@ async function writer(c: AppContext, fetcher?: typeof fetch) {
   assertWidgetWrite(c, found.session);
   const token = await githubToken(c, found, fetcher);
   await limitWrites(c, `${found.session.identity.provider}:${found.session.identity.id}`);
-  const body = await readJsonObject(c.req.raw, MAX_BODY + 8 * 1024);
+  // DELETE carries the repository in the query string; the other writes in a JSON body.
+  const body = c.req.method === 'DELETE' ? { repo: c.req.query('repo') } : await readJsonObject(c.req.raw, MAX_BODY + 8 * 1024);
   const repo = assertRepositoryAllowed(body.repo, loadAllowLists(c.env));
   return { token, body, repo, github: gitHubAppFromEnv(c.env, fetcher) };
 }
@@ -151,6 +167,28 @@ export function writeRoutes(fetcher?: typeof fetch) {
     const data = await github.graphql<{ addDiscussionComment: { comment: GComment } }>(repoRef(repo), ADD_COMMENT, { input: { discussionId: id, body: markdown } }, token);
     await bumpCacheVersion(c.env.DISCUSS_KV, repo);
     return c.json({ discussionId: id, comment: adaptComment(data.addDiscussionComment.comment) satisfies Comment }, 201);
+  });
+
+  // Edit or delete the reader's own comment: GitHub itself enforces authorship for the reader's token (#19).
+  routes.patch('/comments/:id', async (c) => {
+    const { token, body, repo, github } = await writer(c, fetcher);
+    const id = commentId(c.req.param('id'));
+    await assertCommentInRepository(github, repo, id);
+    const markdown = typeof body.body === 'string' ? body.body.trim() : '';
+    if (!markdown) throw new AppError('VALIDATION_FAILED', 'Write something first.', { fields: ['body'] });
+    if (markdown.length > MAX_BODY) throw new AppError('PAYLOAD_TOO_LARGE', 'The comment is too long.');
+    const data = await github.graphql<{ updateDiscussionComment: { comment: GReply } }>(repoRef(repo), UPDATE, { input: { commentId: id, body: markdown } }, token);
+    await bumpCacheVersion(c.env.DISCUSS_KV, repo);
+    return c.json({ bodyHTML: data.updateDiscussionComment.comment.bodyHTML, lastEditedAt: data.updateDiscussionComment.comment.lastEditedAt });
+  });
+
+  routes.delete('/comments/:id', async (c) => {
+    const { token, repo, github } = await writer(c, fetcher);
+    const id = commentId(c.req.param('id'));
+    await assertCommentInRepository(github, repo, id);
+    await github.graphql(repoRef(repo), DELETE_COMMENT, { input: { id } }, token);
+    await bumpCacheVersion(c.env.DISCUSS_KV, repo);
+    return c.body(null, 204);
   });
 
   routes.post('/reactions', async (c) => {

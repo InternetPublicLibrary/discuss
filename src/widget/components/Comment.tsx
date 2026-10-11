@@ -7,14 +7,18 @@ import { getJson } from '../lib/api';
 import { processCommentBody } from '../lib/body';
 import { useDateFormatters, useI18n } from '../lib/i18n';
 import { Author } from './Author';
+import { EditBox } from './EditBox';
 import { CommentBox } from './CommentBox';
+import { CommentMenu } from './CommentMenu';
 import { Hidden } from './Hidden';
 import { ReactionButtons } from './ReactionButtons';
 import { Reply } from './Reply';
 
 const SHOWN_REPLIES = 5;
 
-export function Comment({ comment, config, discussionId, locked }: { comment: CommentData; config: WidgetConfig; discussionId: string | null; locked: boolean }) {
+export function Comment({ comment: initial, config, discussionId, locked }: { comment: CommentData; config: WidgetConfig; discussionId: string | null; locked: boolean }) {
+  const [comment, setComment] = useState(initial);
+  const [editing, setEditing] = useState(false);
   const repo = config.repo;
   const { identity } = useAuth();
   const [posted, setPosted] = useState<ReplyData[]>([]);
@@ -43,7 +47,7 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
   };
 
   return (
-    <article className="gsc-comment" aria-label={`${comment.orcidAuthor?.name ?? comment.author.login}, ${formatDate(comment.createdAt)}`}>
+    <article id={`discuss-comment-${comment.id}`} className="gsc-comment" aria-label={`${comment.orcidAuthor?.name ?? comment.author.login}, ${formatDate(comment.createdAt)}`}>
       <div className={`color-bg-primary w-full min-w-0 rounded-md border ${comment.viewerDidAuthor ? 'color-box-border-info' : 'color-border-primary'}`}>
         {!comment.isMinimized ? (
           <div className="gsc-comment-header">
@@ -60,7 +64,10 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
                 </span>
               ) : null}
             </div>
-            {comment.lastEditedAt ? <span className="color-text-secondary gsc-comment-edited" title={t('lastEditedAt', { date: formatDate(comment.lastEditedAt) })}>{t('edited')}</span> : null}
+            <div className="flex items-center gap-1">
+              {comment.lastEditedAt ? <span className="color-text-secondary gsc-comment-edited" title={t('lastEditedAt', { date: formatDate(comment.lastEditedAt) })}>{t('edited')}</span> : null}
+              {!comment.deletedAt ? <CommentMenu item={comment} config={config} onEdit={() => setEditing(true)} onDeleted={() => setComment({ ...comment, deletedAt: new Date().toISOString() })} /> : null}
+            </div>
           </div>
         ) : null}
         {comment.isMinimized && !comment.deletedAt ? (
@@ -76,6 +83,8 @@ export function Comment({ comment, config, discussionId, locked }: { comment: Co
           <div className="markdown gsc-comment-content minimized color-bg-tertiary border-color-primary">
             <em className="color-text-secondary">{t('thisCommentWasDeleted')}</em>
           </div>
+        ) : editing ? (
+          <EditBox item={comment} config={config} onDone={(updated) => { if (updated) setComment({ ...comment, ...updated }); setEditing(false); }} />
         ) : (
           <div dir="auto" className="markdown gsc-comment-content" dangerouslySetInnerHTML={{ __html: processCommentBody(comment.bodyHTML) }} />
         )}
