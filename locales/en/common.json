@@ -104,10 +104,20 @@
   "reason.invalid-request": "Something went wrong loading the comments.",
   "reason.internal": "Something went wrong loading the comments.",
   "noCommentsYet": "No comments yet. Be the first to start the conversation.",
-  "signInToCommentSoon": "Sign-in to comment is coming soon.",
   "loadEarlierReplies": {
     "0": "Load {{count}} earlier replies",
     "one": "Load {{count}} earlier reply",
     "other": "Load {{count}} earlier replies"
-  }
+  },
+  "signInWithOrcid": "Sign in with ORCID",
+  "signedInAs": "Signed in as {{name}}",
+  "popupBlocked": "Your browser blocked the sign-in window. Allow pop-ups for this page and try again.",
+  "signInFailed": "Sign-in did not complete. Please try again.",
+  "orcidCommentingSoon": "Commenting with ORCID is coming soon.",
+  "signInToReact": "Sign in with GitHub to react.",
+  "orcidCannotReact": "Reactions are available to GitHub accounts only.",
+  "postComment": "Comment",
+  "postReply": "Reply",
+  "posting": "Posting…",
+  "postingFailed": "Your comment could not be posted. Please try again."
 }

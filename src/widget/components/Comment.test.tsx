@@ -1,6 +1,7 @@
 import { render } from 'preact';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Comment as CommentData, Reply } from '../../shared/types';
+import { readConfig } from '../lib/config';
 import { I18nProvider, loadMessages } from '../lib/i18n';
 import { Comment } from './Comment';
 
@@ -25,11 +26,12 @@ describe('Comment with more than 100 replies (#22)', () => {
     const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () =>
       Response.json({ totalCount: 150, replies: Array.from({ length: 50 }, (_v, index) => reply(index + 1)), startCursor: null }),
     );
+    fetch.mockClear();
     const messages = await loadMessages('en');
     const root = document.createElement('div');
     render(
       <I18nProvider locale="en" messages={messages} fallback={messages}>
-        <Comment comment={comment} repo="o/r" />
+        <Comment comment={comment} config={readConfig('?repo=o/r&term=x')} discussionId="D_1" locked={false} />
       </I18nProvider>,
       root,
     );

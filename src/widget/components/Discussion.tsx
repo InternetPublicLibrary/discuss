@@ -4,7 +4,11 @@ import { useDiscussion } from '../lib/discussion';
 import { useI18n } from '../lib/i18n';
 import { postToParent } from '../lib/messages';
 import { Comment } from './Comment';
-import { ReactionSummary } from './Reactions';
+import { REACTIONS, type Comment as CommentData, type ReactionGroups } from '../../shared/types';
+import { CommentBox, type Posted } from './CommentBox';
+import { ReactionButtons } from './ReactionButtons';
+
+const NO_REACTIONS = Object.fromEntries(Object.keys(REACTIONS).map((key) => [key, { count: 0, viewerHasReacted: false }])) as ReactionGroups;
 
 export function Discussion({ config }: { config: WidgetConfig }) {
   const { t } = useI18n();
@@ -12,6 +16,14 @@ export function Discussion({ config }: { config: WidgetConfig }) {
   const data = useDiscussion(config, order);
   const notFound = data.error?.reason === 'discussion-not-found';
   const error = notFound ? null : data.error;
+  // Writes add to what was loaded; the first write on a page without a discussion learns its id (#20).
+  const [added, setAdded] = useState<CommentData[]>([]);
+  const [createdId, setCreatedId] = useState<string | null>(null);
+  const discussionId = data.page?.discussion.id ?? createdId;
+  const onPosted = (posted: Posted) => {
+    setCreatedId((id) => id ?? posted.discussionId);
+    if (posted.comment) setAdded((items) => [...items, posted.comment as CommentData]);
+  };
 
   useEffect(() => {
     if (error) postToParent({ type: 'discuss:error', reason: error.reason }, config.parentOrigin);
@@ -39,19 +51,25 @@ export function Discussion({ config }: { config: WidgetConfig }) {
   }
 
   const discussion = data.page?.discussion;
-  const total = discussion?.totalCommentCount ?? 0;
+  const total = (discussion?.totalCommentCount ?? 0) + added.length;
+  const locked = discussion?.locked ?? false;
+  const box = locked ? null : <CommentBox config={config} discussionId={discussionId} onPosted={onPosted} />;
 
   return (
     <div className="color-text-primary gsc-main">
-      {config.reactionsEnabled && discussion ? (
-        <section className="gsc-reactions" aria-label={t('reactions', { count: discussion.reactionCount })}>
+      {config.reactionsEnabled ? (
+        <section className="gsc-reactions" aria-label={t('reactions', { count: discussion?.reactionCount ?? 0 })}>
           <h2 className="gsc-reactions-count">
-            <a href={discussion.url} target="_blank" rel="noreferrer noopener nofollow" className="color-text-primary">
-              {t('reactions', { count: discussion.reactionCount })}
-            </a>
+            {discussion ? (
+              <a href={discussion.url} target="_blank" rel="noreferrer noopener nofollow" className="color-text-primary">
+                {t('reactions', { count: discussion.reactionCount })}
+              </a>
+            ) : (
+              t('reactions', { count: 0 })
+            )}
           </h2>
           <div className="flex flex-auto items-center justify-center gap-2 text-sm mt-2">
-            <ReactionSummary reactions={discussion.reactions} />
+            <ReactionButtons config={config} reactions={discussion?.reactions ?? NO_REACTIONS} subjectId={discussionId} onSubject={setCreatedId} />
           </div>
         </section>
       ) : null}
@@ -65,7 +83,7 @@ export function Discussion({ config }: { config: WidgetConfig }) {
                   {t('comments', { count: total })}
                 </a>
               ) : (
-                t('comments', { count: 0 })
+                t('comments', { count: total })
               )}
             </h2>
             {discussion && discussion.totalReplyCount > 0 ? (
@@ -92,10 +110,11 @@ export function Discussion({ config }: { config: WidgetConfig }) {
           ) : null}
         </div>
 
-        {notFound || total === 0 ? <p className="color-text-secondary">{t('noCommentsYet')}</p> : null}
+        {config.inputPosition === 'top' ? box : null}
+        {total === 0 ? <p className="color-text-secondary">{t('noCommentsYet')}</p> : null}
 
         <div className={`gsc-timeline ${total ? '' : 'hidden'}`}>
-          {data.frontComments.map((comment) => <Comment key={comment.id} comment={comment} repo={config.repo} />)}
+          {data.frontComments.map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
           {data.numHidden > 0 ? (
             <div className="pagination-loader-container gsc-pagination">
               <button type="button" className="gsc-pagination-button color-border-primary" onClick={data.loadMore} disabled={data.isLoadingMore}>
@@ -104,10 +123,10 @@ export function Discussion({ config }: { config: WidgetConfig }) {
               </button>
             </div>
           ) : null}
-          {data.backComments.map((comment) => <Comment key={comment.id} comment={comment} repo={config.repo} />)}
+          {[...data.backComments, ...added].map((comment) => <Comment key={comment.id} comment={comment} config={config} discussionId={discussionId} locked={locked} />)}
         </div>
 
-        {discussion?.locked ? null : <p className="color-text-secondary text-sm mt-4">{t('signInToCommentSoon')}</p>}
+        {config.inputPosition !== 'top' ? box : null}
       </section>
     </div>
   );

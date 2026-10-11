@@ -10,6 +10,8 @@ export interface WidgetConfig {
   categoryId: string;
   strict: boolean;
   description: string;
+  /** Page title for a new discussion. */
+  title: string;
   backLink: string;
   reactionsEnabled: boolean;
   emitMetadata: boolean;
@@ -40,6 +42,7 @@ export function readConfig(search: string): WidgetConfig {
     categoryId: params.get('categoryId') ?? '',
     strict: flag(params.get('strict'), false),
     description: params.get('description') ?? '',
+    title: params.get('title') ?? '',
     backLink: params.get('backLink') ?? params.get('origin') ?? '',
     reactionsEnabled: flag(params.get('reactionsEnabled'), true),
     emitMetadata: flag(params.get('emitMetadata'), false),
@@ -50,3 +53,14 @@ export function readConfig(search: string): WidgetConfig {
     parentOrigin: parentOrigin === 'null' ? '' : parentOrigin,
   };
 }
+
+/** The page fields the API needs to find or create the page's discussion on a first write. */
+export const pageFields = (config: WidgetConfig) => ({
+  repo: config.repo,
+  categoryId: config.categoryId,
+  category: config.category,
+  term: config.term,
+  title: config.title,
+  description: config.description,
+  backLink: config.backLink,
+});
