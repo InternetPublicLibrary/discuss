@@ -1,0 +1,6 @@
+# Workers static assets: headers for files served without the Worker (scripts, styles, themes, images).
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Content-Type-Options: nosniff
+  Cross-Origin-Resource-Policy: cross-origin
+  Referrer-Policy: strict-origin-when-cross-origin

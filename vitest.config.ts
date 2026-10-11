@@ -13,7 +13,12 @@ export default defineConfig({
       {
         plugins: [preact()],
         css: { postcss: {} },
-        test: { name: 'widget', environment: 'happy-dom', include: ['src/widget/**/*.test.{ts,tsx}'] },
+        test: {
+          name: 'widget',
+          // jsdom: the DOM DOMPurify itself is tested against (happy-dom let event-handler attributes through).
+          environment: 'jsdom',
+          include: ['src/widget/**/*.test.{ts,tsx}'],
+        },
       },
     ],
   },
