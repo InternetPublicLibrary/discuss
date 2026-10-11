@@ -26,3 +26,16 @@ The widget must look and read like the IPL site (light by default, optional dark
 
 ## Out of scope
 Other languages beyond the existing giscus locales.
+
+## Discussion mapping (issue #11)
+
+- `data-mapping="pathname"` uses the **canonical term** from [`src/shared/terms.ts`](../../../src/shared/terms.ts):
+  strip `data-base-path`, `index.html` and the trailing slash, decode percent-encoding, NFC-normalise, keep case;
+  the root is `index`. `/a/b/`, `/a/b`, `/a/b/index.html` and `/base/a/b/` (with `data-base-path="/base"`) are the
+  same page.
+- IPL embeds use `data-strict="1"`: discussions are matched by the SHA-1 of the term stored in their body, so page
+  titles can change freely. New discussions are titled with the page title (`og:title`, then `<title>`, or a
+  `discuss:title` meta), case preserved, and their body holds the page description (or `discuss:description`), the page
+  link, the term and its hash.
+- One discussion per page: creation happens on the first comment, server-side, through one Durable Object per mapping
+  (see spec 001 plan); the category id must belong to the repository and match `data-category`.

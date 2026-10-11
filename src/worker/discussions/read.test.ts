@@ -109,6 +109,27 @@ describe('GET /api/discussions', () => {
   });
 });
 
+describe('reads after creation (#10)', () => {
+  it('finds a discussion through the KV map before GitHub search indexes it', async () => {
+    const { digestHex } = await import('../../shared/digest');
+    const term = `pt-BR/novo-${Date.now()}`;
+    await env.DISCUSS_KV.put(`map:${REPO.toLowerCase()}:DIC_c:${await digestHex(term)}`, JSON.stringify({ id: 'D_new', number: 42 }));
+    const fake = new FakeGitHub()
+      .withInstallation()
+      .on('POST', /^\/graphql$/, (call) => {
+        const variables = (call.body as { variables: { number?: number } }).variables;
+        return Response.json(variables.number === 42 ? { data: { repository: { discussion: { ...discussion([]), number: 42 } } } } : { data: { search: { discussionCount: 0, nodes: [] } } });
+      });
+    const app = new Hono<{ Bindings: Env }>();
+    app.onError(handleError);
+    app.route('/api', discussionRoutes(fake.fetch));
+    const response = await app.request(`/api/discussions?repo=${encodeURIComponent(REPO)}&term=${encodeURIComponent(term)}&categoryId=DIC_c&strict=1`, {}, { ...env, GITHUB_APP_ID: '1', GITHUB_APP_PRIVATE_KEY: pem });
+
+    expect(response.status).toBe(200);
+    expect(((await response.json()) as { discussion: { number: number } }).discussion.number).toBe(42);
+  });
+});
+
 describe('search injection', () => {
   it('keeps quotes and backslashes in the term from adding search qualifiers', async () => {
     const { request, fake } = setup();

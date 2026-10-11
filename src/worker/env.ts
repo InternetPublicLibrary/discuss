@@ -11,6 +11,8 @@ export interface Env {
   IPL_ORIGIN_PATTERNS?: string;
   /** Comma-separated owner/repo names whose discussions the service serves (var). */
   ALLOWED_REPOSITORIES?: string;
+  /** One Durable Object per page mapping: serialises find-or-create of its discussion (#10). */
+  DISCUSSION_LOCK: DurableObjectNamespace<import('./discussions/find-or-create').DiscussionLock>;
   /** GitHub App id (var). */
   GITHUB_APP_ID?: string;
   /** Secret of the App webhook (secret). */

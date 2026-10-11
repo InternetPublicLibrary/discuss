@@ -17,6 +17,7 @@ export interface DiscussionQuery {
   term?: string;
   number?: number;
   category?: string;
+  categoryId?: string;
   strict: boolean;
   first?: number;
   last?: number;
@@ -45,6 +46,7 @@ export function parseQuery(c: Context<{ Bindings: Env }>): DiscussionQuery {
     ...(term ? { term } : {}),
     ...(number ? { number } : {}),
     ...(c.req.query('category') ? { category: c.req.query('category') ?? '' } : {}),
+    ...(c.req.query('categoryId') ? { categoryId: c.req.query('categoryId') ?? '' } : {}),
     strict: c.req.query('strict') === 'true' || c.req.query('strict') === '1',
     ...(first || last ? {} : { first: 20 }),
     ...(first ? { first } : {}),
@@ -106,8 +108,14 @@ export async function readDiscussion(c: Context<{ Bindings: Env }>, query: Discu
   let discussion: GDiscussion | null;
   let rateLimit: SearchData['rateLimit'];
 
-  if (query.number) {
-    const data = await github.graphql<NumberData>(repository, DISCUSSION_BY_NUMBER, { owner: repository.owner, name: repository.repo, number: query.number, ...pagination });
+  // A discussion created by this service is found through its KV map first, before GitHub search indexes it (#10).
+  const mapped = !query.number && query.term && query.categoryId
+    ? await kv.get<{ number: number }>(`map:${query.repo.toLowerCase()}:${query.categoryId}:${await digestHex(query.term)}`, 'json')
+    : null;
+  const number = query.number ?? mapped?.number;
+
+  if (number) {
+    const data = await github.graphql<NumberData>(repository, DISCUSSION_BY_NUMBER, { owner: repository.owner, name: repository.repo, number, ...pagination });
     discussion = data.repository?.discussion ?? null;
     rateLimit = data.rateLimit;
   } else {
