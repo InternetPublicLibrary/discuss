@@ -2,47 +2,24 @@ name: CI
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   pull_request:
-    branches:
-      - main
+
+permissions:
+  contents: read
 
 jobs:
-  lint_build:
-    name: Lint and Build
+  check:
+    name: Lint, typecheck, test and build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.next/cache
-          # Generate a new cache whenever packages or source files change.
-          key: ${{ runner.os }}-nextjs-${{ hashFiles('**/yarn.lock') }}-${{ hashFiles('**.[jt]s', '**.[jt]sx') }}
-          # If source files changed but packages didn't, rebuild from a prior cache.
-          restore-keys: |
-            ${{ runner.os }}-nextjs-${{ hashFiles('**/yarn.lock') }}-
-
-      - uses: actions/cache@v4
-        with:
-          path: .eslintcache
-          key: eslint
-          restore-keys: |
-            eslint
-
       - uses: actions/setup-node@v4
         with:
-          cache: 'yarn'
-
-      - name: Install dependencies
-        run: yarn
-
-      - name: Run ESLint and Stylelint
-        run: yarn lint
-
-      - name: Run Prettier
-        run: yarn format
-
-      - name: Build project
-        run: yarn build
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build

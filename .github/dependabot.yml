@@ -1,31 +1,19 @@
 version: 2
 updates:
-  - package-ecosystem: github-actions
-    directory: '/'
-    schedule:
-      interval: daily
-    open-pull-requests-limit: 99
-    groups:
-      actions:
-        patterns:
-          - '*'
-
   - package-ecosystem: npm
-    directory: '/'
-    schedule:
-      interval: weekly
-      day: saturday
-    open-pull-requests-limit: 99
+    directory: /
+    schedule: { interval: weekly }
+    # Minor and patch updates arrive together; each major gets its own PR.
     groups:
-      dependencies:
-        patterns:
-          - '*'
-        exclude-patterns:
-          - 'next'
-          - '@next/bundle-analyzer'
-          - 'eslint-config-next'
-      next:
-        patterns:
-          - 'next'
-          - '@next/bundle-analyzer'
-          - 'eslint-config-next'
+      npm:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+    ignore:
+      # typescript-eslint supports TypeScript < 6.1 (2026-10); lift when it supports 7.
+      - dependency-name: typescript
+        update-types: ["version-update:semver-major"]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly }
+    groups:
+      actions: { patterns: ["*"] }
